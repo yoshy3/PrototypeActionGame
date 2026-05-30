@@ -157,15 +157,15 @@ export const createBulletVisual = (owner: BulletOwner, kind: BulletKind, radius:
       const a = -Math.PI / 2 + (Math.PI * 2 * i) / 10;
       points.push(Math.cos(a) * r, Math.sin(a) * r);
     }
-    g.poly(points).fill(0xfff2a8).stroke({ color: 0xff77ba, width: 2, alpha: 0.9 });
+    g.poly(points).fill(0xff8acb).stroke({ color: 0xfff0fb, width: 2, alpha: 0.9 });
   } else if (kind === "petal") {
     g.ellipse(0, 0, radius * 0.68, radius * 1.35).fill(0xff88c8);
     g.ellipse(0, 0, radius * 0.38, radius * 1.04).fill({ color: 0xffffff, alpha: 0.45 });
     g.ellipse(0, 0, radius * 0.78, radius * 1.45).stroke({ color: 0xfff0fb, width: 1, alpha: 0.7 });
   } else {
-    g.circle(0, 0, radius).fill(0x8db8ff);
+    g.circle(0, 0, radius).fill(0xff62b8);
     g.circle(-radius * 0.22, -radius * 0.26, radius * 0.35).fill({ color: 0xffffff, alpha: 0.72 });
-    g.circle(0, 0, radius * 1.18).stroke({ color: 0xd7e4ff, width: 2, alpha: 0.55 });
+    g.circle(0, 0, radius * 1.18).stroke({ color: 0xffd8ef, width: 2, alpha: 0.62 });
   }
 
   return g;

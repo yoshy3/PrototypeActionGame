@@ -13,6 +13,8 @@ import { bossStartTime, stageSpawns } from "./StageScript";
 type GameState = "title" | "playing" | "paused" | "clear" | "gameover";
 const HIGH_SCORE_KEY = "moonlit-spell-barrage.highScores";
 const LEGACY_HIGH_SCORE_KEY = "moonlit-spell-barrage.highScore";
+const AUTO_COLLECT_LINE_Y = 340;
+const ITEM_COLLECT_RADIUS = 40;
 type HighScores = Record<DifficultyId, number>;
 
 export class GameScene {
@@ -163,7 +165,9 @@ export class GameScene {
 
     this.bullets.update(dt, 720, 960);
     this.drawCollectLine();
-    this.items.update(dt, this.player.pos, 20, this.player.pos.y < 260, (item) => this.collectItem(item.kind));
+    this.items.update(dt, this.player.pos, ITEM_COLLECT_RADIUS, this.player.pos.y < AUTO_COLLECT_LINE_Y, (item) =>
+      this.collectItem(item.kind)
+    );
     this.resolveCollisions();
     this.cleanupEnemies();
     this.drawBossBar();
@@ -597,8 +601,8 @@ export class GameScene {
 
   private drawCollectLine() {
     this.collectLine.clear();
-    const active = this.player.pos.y < 260;
-    this.collectLine.moveTo(0, 260).lineTo(720, 260).stroke({
+    const active = this.player.pos.y < AUTO_COLLECT_LINE_Y;
+    this.collectLine.moveTo(0, AUTO_COLLECT_LINE_Y).lineTo(720, AUTO_COLLECT_LINE_Y).stroke({
       color: active ? 0xfff4a8 : 0xaefdf2,
       width: active ? 2 : 1,
       alpha: active ? 0.52 : 0.2

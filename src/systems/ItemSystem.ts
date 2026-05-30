@@ -3,6 +3,11 @@ import { circlesOverlap } from "./Collision";
 import type { CollectibleItem, ItemKind, Vector } from "./types";
 import { createItemVisual } from "./VisualFactory";
 
+const FALL_SPEED = 118;
+const MAGNET_RADIUS = 118;
+const AUTO_COLLECT_BASE_SPEED = 300;
+const AUTO_COLLECT_DISTANCE_SCALE = 5 / 3;
+
 export class ItemSystem {
   readonly container = new Container();
   readonly items: CollectibleItem[] = [];
@@ -18,7 +23,7 @@ export class ItemSystem {
       kind,
       sprite,
       pos: { ...pos },
-      vel: { x: (Math.random() - 0.5) * 80 + burst, y: -70 - Math.random() * 60 },
+      vel: { x: (Math.random() - 0.5) * 80 + burst, y: FALL_SPEED },
       radius: kind === "bomb" ? 13 : 11,
       alive: true
     });
@@ -39,16 +44,22 @@ export class ItemSystem {
       const dx = player.x - item.pos.x;
       const dy = player.y - item.pos.y;
       const distance = Math.hypot(dx, dy);
-      const magnetRadius = autoCollect ? 9999 : 118;
-      if (distance < magnetRadius) {
-        const pull = autoCollect ? 1180 : Math.max(0, 1 - distance / 118) * 760;
+      if (autoCollect && distance > 0) {
+        const moveDistance = Math.min(distance, (AUTO_COLLECT_BASE_SPEED + distance * AUTO_COLLECT_DISTANCE_SCALE) * dt);
+        item.pos.x += (dx / distance) * moveDistance;
+        item.pos.y += (dy / distance) * moveDistance;
+      } else if (distance < MAGNET_RADIUS) {
+        const pull = Math.max(0, 1 - distance / MAGNET_RADIUS) * 760;
         item.vel.x += (dx / Math.max(distance, 1)) * pull * dt;
         item.vel.y += (dy / Math.max(distance, 1)) * pull * dt;
+
+        item.pos.x += item.vel.x * dt;
+        item.pos.y += item.vel.y * dt;
+      } else {
+        item.pos.x += item.vel.x * dt;
+        item.pos.y += item.vel.y * dt;
       }
 
-      item.vel.y += 190 * dt;
-      item.pos.x += item.vel.x * dt;
-      item.pos.y += item.vel.y * dt;
       item.sprite.position.set(item.pos.x, item.pos.y);
       item.sprite.rotation += dt * (item.kind === "bomb" ? 2.2 : 1.4);
 
@@ -56,7 +67,7 @@ export class ItemSystem {
         item.alive = false;
         item.sprite.destroy();
         onCollect(item);
-      } else if (item.pos.y > 1010 || item.pos.x < -60 || item.pos.x > 780) {
+      } else if (!autoCollect && (item.pos.y > 1010 || item.pos.x < -60 || item.pos.x > 780)) {
         item.alive = false;
         item.sprite.destroy();
       }
