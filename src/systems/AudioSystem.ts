@@ -1,6 +1,11 @@
 type WaveType = OscillatorType;
 export type MusicTrackId = "title" | "stage" | "boss" | "clear" | "gameover";
 
+const titleMusicUrl = new URL("../assets/audio/title.mp3", import.meta.url).href;
+const stageMusicUrl = new URL("../assets/audio/stage.mp3", import.meta.url).href;
+const bossMusicUrl = new URL("../assets/audio/boss.mp3", import.meta.url).href;
+const clearMusicUrl = new URL("../assets/audio/clear.mp3", import.meta.url).href;
+
 type GeneratedMusicTrack = {
   mode: "generated";
   bpm: number;
@@ -21,40 +26,24 @@ type MusicTrack = GeneratedMusicTrack | AssetMusicTrack;
 
 const musicTracks: Record<MusicTrackId, MusicTrack> = {
   title: {
-    mode: "generated",
-    bpm: 82,
-    volume: 0.2925,
-    lead: [659.25, 0, 783.99, 0, 739.99, 659.25, 587.33, 0],
-    bass: [164.81, 0, 196, 0],
-    pad: [329.63, 493.88, 392, 493.88],
-    leadWave: "triangle"
+    mode: "asset",
+    url: titleMusicUrl,
+    volume: 0.24
   },
   stage: {
-    mode: "generated",
-    bpm: 132,
-    volume: 0.27,
-    lead: [880, 987.77, 1046.5, 0, 783.99, 880, 659.25, 0],
-    bass: [220, 220, 246.94, 196],
-    pad: [440, 523.25, 493.88, 392],
-    leadWave: "square"
+    mode: "asset",
+    url: stageMusicUrl,
+    volume: 0.24
   },
   boss: {
-    mode: "generated",
-    bpm: 156,
-    volume: 0.315,
-    lead: [987.77, 0, 1174.66, 1046.5, 880, 987.77, 1318.51, 0],
-    bass: [146.83, 196, 174.61, 220],
-    pad: [293.66, 392, 349.23, 440],
-    leadWave: "sawtooth"
+    mode: "asset",
+    url: bossMusicUrl,
+    volume: 0.25
   },
   clear: {
-    mode: "generated",
-    bpm: 92,
-    volume: 0.27,
-    lead: [523.25, 659.25, 783.99, 1046.5, 987.77, 783.99, 659.25, 0],
-    bass: [130.81, 164.81, 196, 164.81],
-    pad: [261.63, 329.63, 392, 523.25],
-    leadWave: "triangle"
+    mode: "asset",
+    url: clearMusicUrl,
+    volume: 0.24
   },
   gameover: {
     mode: "generated",
@@ -78,9 +67,11 @@ export class AudioSystem {
   private paused = false;
   private requestedTrack: MusicTrackId | null = null;
   private currentTrack: MusicTrackId | null = null;
+  private assetMusic: HTMLAudioElement | null = null;
   private musicStep = 0;
   private nextMusicTime = 0;
   private musicTimer = 0;
+  private unlockListening = false;
 
   resume() {
     const AudioContextCtor = window.AudioContext ?? window.webkitAudioContext;
@@ -94,7 +85,7 @@ export class AudioSystem {
       this.sfxGain = this.context.createGain();
       this.musicGain = this.context.createGain();
       this.master.gain.value = this.muted ? 0 : 0.18;
-      this.sfxGain.gain.value = 1;
+      this.sfxGain.gain.value = 6;
       this.musicGain.gain.value = 0;
       this.sfxGain.connect(this.master);
       this.musicGain.connect(this.master);
@@ -111,8 +102,10 @@ export class AudioSystem {
     this.muted = !this.muted;
     if (this.master && this.context) {
       this.master.gain.setTargetAtTime(this.muted ? 0 : 0.18, this.context.currentTime, 0.025);
+      this.refreshMusicVolume();
       if (!this.muted) {
         void this.context.resume();
+        void this.assetMusic?.play();
       }
     }
     return this.muted;
@@ -125,6 +118,7 @@ export class AudioSystem {
   playMusic(track: MusicTrackId) {
     this.requestedTrack = track;
     if (!this.context) {
+      this.listenForAudioUnlock();
       return;
     }
     this.startMusic(track);
@@ -136,6 +130,11 @@ export class AudioSystem {
     if (this.musicTimer) {
       window.clearInterval(this.musicTimer);
       this.musicTimer = 0;
+    }
+    if (this.assetMusic) {
+      this.assetMusic.pause();
+      this.assetMusic.currentTime = 0;
+      this.assetMusic = null;
     }
     if (this.musicGain && this.context) {
       this.musicGain.gain.setTargetAtTime(0, this.context.currentTime, 0.04);
@@ -295,8 +294,7 @@ export class AudioSystem {
 
     const track = musicTracks[trackId];
     if (track.mode === "asset") {
-      this.stopMusic();
-      this.requestedTrack = trackId;
+      this.startAssetMusic(trackId, track);
       return;
     }
 
@@ -304,12 +302,60 @@ export class AudioSystem {
       window.clearInterval(this.musicTimer);
       this.musicTimer = 0;
     }
+    if (this.assetMusic) {
+      this.assetMusic.pause();
+      this.assetMusic = null;
+    }
     this.currentTrack = trackId;
     this.musicStep = 0;
     this.nextMusicTime = this.context.currentTime + 0.03;
     this.refreshMusicVolume();
     this.scheduleMusic();
     this.musicTimer = window.setInterval(() => this.scheduleMusic(), 50);
+  }
+
+  private startAssetMusic(trackId: MusicTrackId, track: AssetMusicTrack) {
+    if (this.musicTimer) {
+      window.clearInterval(this.musicTimer);
+      this.musicTimer = 0;
+    }
+    if (this.musicGain && this.context) {
+      this.musicGain.gain.setTargetAtTime(0, this.context.currentTime, 0.04);
+    }
+
+    if (this.assetMusic?.src !== track.url) {
+      if (this.assetMusic) {
+        this.assetMusic.pause();
+      }
+      this.assetMusic = new Audio(track.url);
+      this.assetMusic.loop = true;
+      this.assetMusic.preload = "auto";
+    }
+
+    this.currentTrack = trackId;
+    this.refreshMusicVolume();
+    if (!this.muted) {
+      void this.assetMusic.play();
+    }
+  }
+
+  private listenForAudioUnlock() {
+    if (this.unlockListening) {
+      return;
+    }
+
+    this.unlockListening = true;
+    const unlock = () => {
+      this.unlockListening = false;
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+      window.removeEventListener("touchstart", unlock);
+      this.resume();
+    };
+
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    window.addEventListener("touchstart", unlock, { once: true });
   }
 
   private scheduleMusic() {
@@ -362,6 +408,10 @@ export class AudioSystem {
 
     const track = musicTracks[this.currentTrack];
     const pausedScale = this.paused ? 0.42 : 1;
+    if (this.assetMusic && track.mode === "asset") {
+      this.assetMusic.volume = this.muted ? 0 : Math.min(1, track.volume * pausedScale);
+      return;
+    }
     this.musicGain.gain.setTargetAtTime(track.volume * pausedScale, this.context.currentTime, 0.05);
   }
 }
