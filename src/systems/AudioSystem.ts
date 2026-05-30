@@ -6,6 +6,16 @@ const stageMusicUrl = new URL("../assets/audio/stage.mp3", import.meta.url).href
 const bossMusicUrl = new URL("../assets/audio/boss.mp3", import.meta.url).href;
 const clearMusicUrl = new URL("../assets/audio/clear.mp3", import.meta.url).href;
 const gameOverMusicUrl = new URL("../assets/audio/game-over.mp3", import.meta.url).href;
+const shootSfxUrl = new URL("../assets/audio/sfx/shoot.wav", import.meta.url).href;
+const defeatSfxUrl = new URL("../assets/audio/sfx/defeat.wav", import.meta.url).href;
+const defeatedSfxUrl = new URL("../assets/audio/sfx/defeated.wav", import.meta.url).href;
+const bombSfxUrl = new URL("../assets/audio/sfx/bomb.wav", import.meta.url).href;
+const spellSwitchSfxUrl = new URL("../assets/audio/sfx/spell-switch.wav", import.meta.url).href;
+const warningSfxUrl = new URL("../assets/audio/sfx/warning.wav", import.meta.url).href;
+const getItemSfxUrl = new URL("../assets/audio/sfx/get-item.wav", import.meta.url).href;
+const powerUpSfxUrl = new URL("../assets/audio/sfx/power-up.wav", import.meta.url).href;
+const bossAppearSfxUrl = new URL("../assets/audio/sfx/boss-appear.wav", import.meta.url).href;
+const defeatBossSfxUrl = new URL("../assets/audio/sfx/defeat-boss.wav", import.meta.url).href;
 
 type GeneratedMusicTrack = {
   mode: "generated";
@@ -24,6 +34,17 @@ type AssetMusicTrack = {
 };
 
 type MusicTrack = GeneratedMusicTrack | AssetMusicTrack;
+type SfxId =
+  | "shoot"
+  | "defeat"
+  | "defeated"
+  | "bomb"
+  | "spellSwitch"
+  | "warning"
+  | "getItem"
+  | "powerUp"
+  | "bossAppear"
+  | "defeatBoss";
 
 const musicTracks: Record<MusicTrackId, MusicTrack> = {
   title: {
@@ -53,6 +74,25 @@ const musicTracks: Record<MusicTrackId, MusicTrack> = {
   }
 };
 
+const sfxUrls: Record<SfxId, string> = {
+  shoot: shootSfxUrl,
+  defeat: defeatSfxUrl,
+  defeated: defeatedSfxUrl,
+  bomb: bombSfxUrl,
+  spellSwitch: spellSwitchSfxUrl,
+  warning: warningSfxUrl,
+  getItem: getItemSfxUrl,
+  powerUp: powerUpSfxUrl,
+  bossAppear: bossAppearSfxUrl,
+  defeatBoss: defeatBossSfxUrl
+};
+
+const sfxVolumes: Partial<Record<SfxId, number>> = {
+  defeat: 2,
+  defeated: 2,
+  getItem: 0.5
+};
+
 export class AudioSystem {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -60,11 +100,14 @@ export class AudioSystem {
   private musicGain: GainNode | null = null;
   private lastShotAt = 0;
   private lastGrazeAt = 0;
+  private lastItemCollectAt = 0;
   private muted = false;
   private paused = false;
   private requestedTrack: MusicTrackId | null = null;
   private currentTrack: MusicTrackId | null = null;
   private assetMusic: HTMLAudioElement | null = null;
+  private sfxBuffers = new Map<SfxId, AudioBuffer | null>();
+  private sfxLoading = new Map<SfxId, Promise<AudioBuffer | null>>();
   private musicStep = 0;
   private nextMusicTime = 0;
   private musicTimer = 0;
@@ -82,7 +125,7 @@ export class AudioSystem {
       this.sfxGain = this.context.createGain();
       this.musicGain = this.context.createGain();
       this.master.gain.value = this.muted ? 0 : 0.18;
-      this.sfxGain.gain.value = 6;
+      this.sfxGain.gain.value = 0.6;
       this.musicGain.gain.value = 0;
       this.sfxGain.connect(this.master);
       this.musicGain.connect(this.master);
@@ -90,6 +133,7 @@ export class AudioSystem {
     }
 
     void this.context.resume();
+    this.preloadSfx();
     if (this.requestedTrack) {
       this.startMusic(this.requestedTrack);
     }
@@ -149,17 +193,26 @@ export class AudioSystem {
       return;
     }
     this.lastShotAt = now;
+    if (this.playSfx("shoot")) {
+      return;
+    }
     this.tone(980, 0.042, "triangle", 0.055, -260);
     this.tone(1460, 0.028, "sine", 0.022, -360);
   }
 
   enemyDown() {
+    if (this.playSfx("defeat")) {
+      return;
+    }
     this.tone(460, 0.11, "triangle", 0.12, -280);
     this.tone(780, 0.08, "sine", 0.055, -420);
     this.noise(0.075, 0.035);
   }
 
   playerHit() {
+    if (this.playSfx("defeated")) {
+      return;
+    }
     this.tone(150, 0.28, "sawtooth", 0.16, -90);
     this.tone(92, 0.34, "triangle", 0.1, -30);
     this.noise(0.18, 0.11);
@@ -175,6 +228,9 @@ export class AudioSystem {
   }
 
   bomb() {
+    if (this.playSfx("bomb")) {
+      return;
+    }
     this.tone(180, 0.48, "sine", 0.2, 560);
     this.tone(540, 0.28, "triangle", 0.13, 260);
     this.tone(1080, 0.16, "sine", 0.06, -360);
@@ -182,22 +238,40 @@ export class AudioSystem {
   }
 
   bossAppear() {
+    if (this.playSfx("bossAppear")) {
+      return;
+    }
     this.tone(180, 0.18, "sine", 0.16, 80);
     this.tone(360, 0.38, "triangle", 0.12, 240);
   }
 
   spellChange() {
+    if (this.playSfx("spellSwitch")) {
+      return;
+    }
     this.tone(330, 0.12, "triangle", 0.12, 220);
     window.setTimeout(() => this.tone(660, 0.18, "triangle", 0.1, -80), 95);
     this.noise(0.12, 0.055);
   }
 
   warning() {
+    if (this.playSfx("warning")) {
+      return;
+    }
     this.tone(220, 0.16, "sawtooth", 0.08, 20);
     window.setTimeout(() => this.tone(220, 0.16, "sawtooth", 0.08, 20), 240);
   }
 
   itemCollect(kind: "score" | "bomb") {
+    const now = this.context?.currentTime ?? 0;
+    if (now - this.lastItemCollectAt < 1) {
+      return;
+    }
+    this.lastItemCollectAt = now;
+
+    if (this.playSfx("getItem")) {
+      return;
+    }
     if (kind === "bomb") {
       this.tone(523.25, 0.08, "triangle", 0.09, 140);
       window.setTimeout(() => this.tone(783.99, 0.12, "triangle", 0.08, 0), 65);
@@ -208,12 +282,18 @@ export class AudioSystem {
   }
 
   powerUp() {
+    if (this.playSfx("powerUp")) {
+      return;
+    }
     this.tone(392, 0.08, "triangle", 0.1, 80);
     window.setTimeout(() => this.tone(523.25, 0.08, "triangle", 0.1, 80), 75);
     window.setTimeout(() => this.tone(783.99, 0.18, "triangle", 0.11, 160), 150);
   }
 
   bossDefeated() {
+    if (this.playSfx("defeatBoss")) {
+      return;
+    }
     this.tone(196, 0.36, "sine", 0.16, 360);
     this.tone(392, 0.22, "triangle", 0.12, 220);
     window.setTimeout(() => this.tone(783.99, 0.28, "triangle", 0.11, 0), 150);
@@ -232,6 +312,72 @@ export class AudioSystem {
     }
 
     this.toneAt(frequency, duration, type, volume, slide, this.context.currentTime, this.sfxGain);
+  }
+
+  private playSfx(id: SfxId) {
+    if (!this.context || !this.sfxGain || this.muted) {
+      return false;
+    }
+
+    const buffer = this.sfxBuffers.get(id);
+    if (!buffer) {
+      void this.loadSfx(id);
+      return false;
+    }
+
+    const source = this.context.createBufferSource();
+    const gain = this.context.createGain();
+    source.buffer = buffer;
+    gain.gain.value = sfxVolumes[id] ?? 1;
+    source.connect(gain);
+    gain.connect(this.sfxGain);
+    source.start();
+    return true;
+  }
+
+  private preloadSfx() {
+    Object.keys(sfxUrls).forEach((id) => {
+      void this.loadSfx(id as SfxId);
+    });
+  }
+
+  private loadSfx(id: SfxId) {
+    if (!this.context) {
+      return Promise.resolve(null);
+    }
+
+    const cached = this.sfxBuffers.get(id);
+    if (cached) {
+      return Promise.resolve(cached);
+    }
+
+    const loading = this.sfxLoading.get(id);
+    if (loading) {
+      return loading;
+    }
+
+    const promise = fetch(sfxUrls[id])
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load ${sfxUrls[id]}`);
+        }
+        return response.arrayBuffer();
+      })
+      .then((data) => this.context?.decodeAudioData(data) ?? null)
+      .then((buffer) => {
+        this.sfxBuffers.set(id, buffer);
+        return buffer;
+      })
+      .catch(() => {
+        this.sfxBuffers.set(id, null);
+        return null;
+      })
+      .finally(() => {
+        this.sfxLoading.delete(id);
+      });
+
+    this.sfxLoading.set(id, promise);
+    return promise;
   }
 
   private toneAt(
