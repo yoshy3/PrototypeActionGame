@@ -90,6 +90,7 @@ export class GameScene {
   private power = 0;
   private bombs = 2;
   private clearTimer = 0;
+  private clearInputTimer = 0;
   private backgroundOffset = 0;
   private flashTimer = 0;
   private bannerTimer = 0;
@@ -180,9 +181,17 @@ export class GameScene {
       this.start();
     } else if (this.state === "paused" && this.input.wasPressed("z", " ", "enter")) {
       this.showTitle();
-    } else if ((this.state === "clear" || this.state === "gameover") && this.input.wasPressed("r")) {
+    } else if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("n")) {
+      this.start({ stageDebug: 2, bossDebug: true });
+    } else if (
+      (this.state === "gameover" || (this.state === "clear" && this.clearInputTimer <= 0)) &&
+      this.input.wasPressed("r")
+    ) {
       this.start();
-    } else if ((this.state === "clear" || this.state === "gameover") && this.input.wasPressed("z", " ", "enter")) {
+    } else if (
+      (this.state === "gameover" || (this.state === "clear" && this.clearInputTimer <= 0)) &&
+      this.input.wasPressed("z", " ", "enter")
+    ) {
       this.showTitle();
     }
 
@@ -257,9 +266,7 @@ export class GameScene {
         this.showBanner(`SPELL ${this.bossPhase + 1}\n${this.boss.getSpellName()}`, 1.7);
         this.shake(0.28, 5);
         this.spark(this.boss.pos.x, this.boss.pos.y, 0xffe2f3, 34);
-        if (this.currentStage.id === 2) {
-          this.dropSpellPowerItems(this.boss.pos.x, this.boss.pos.y);
-        }
+        this.dropSpellChangeItems(this.boss.pos.x, this.boss.pos.y);
       }
       this.boss.container.scale.set(1 + Math.max(0, this.boss.container.scale.x - 1 - dt * 4));
     }
@@ -316,6 +323,7 @@ export class GameScene {
     this.bombs = 2;
     this.nextExtendScore = FIRST_EXTEND_SCORE;
     this.clearTimer = 0;
+    this.clearInputTimer = 0;
     this.stageClearTimer = 0;
     this.flashTimer = 0;
     this.bannerTimer = 0;
@@ -366,7 +374,7 @@ export class GameScene {
     this.hideClearResult();
     this.overlay.position.set(360, 560);
     this.overlay.text = `Difficulty: ${this.difficulty.label}\n\nLeft/Right or 1-3 to change\nZ / SPACE to start${
-      DEV_BOSS_START_ENABLED ? "\nB to start boss debug   V for Stage 2" : ""
+      DEV_BOSS_START_ENABLED ? "\nB: Stage 1 boss   V: Stage 2   N: Stage 2 boss" : ""
     }`;
     this.hud.text = `Move: Arrow/WASD/Pad   Shot: Z/A   Bomb: X/X\nFocus: Shift/RB   M: ${
       this.audio.isMuted() ? "Sound Off" : "Sound On"
@@ -537,6 +545,7 @@ export class GameScene {
     this.banner.text = "";
     this.clearFx.visible = true;
     this.clearFxTimer = 0;
+    this.clearInputTimer = 4.0;
     this.clearTitle.text = "STAGE CLEAR";
     this.refreshClearResultText(wasRecord);
     this.subHud.text = wasRecord ? "New local high score saved." : "Run complete.";
@@ -545,7 +554,10 @@ export class GameScene {
 
   private refreshClearResultText(wasRecord: boolean) {
     this.clearStats.text = `${this.difficulty.label} Score ${this.score}\nPower Lv${this.powerLevel + 1} ${this.power}/${MAX_POWER}   Graze ${this.graze}\nBest ${this.currentHighScore}`;
-    this.clearHint.text = `${wasRecord ? "NEW RECORD" : "RUN COMPLETE"}\nR to retry   Z / SPACE to title`;
+    this.clearHint.text =
+      this.clearInputTimer > 0
+        ? `${wasRecord ? "NEW RECORD" : "RUN COMPLETE"}\nPlease wait...`
+        : `${wasRecord ? "NEW RECORD" : "RUN COMPLETE"}\nR to retry   Z / SPACE to title`;
   }
 
   private hideClearResult() {
@@ -559,6 +571,7 @@ export class GameScene {
   }
 
   private updateClearState(dt: number) {
+    this.clearInputTimer = Math.max(0, this.clearInputTimer - dt);
     this.bullets.update(dt, 720, 960);
     this.drawCollectLine();
     this.items.update(dt, this.player.pos, ITEM_COLLECT_RADIUS, true, (item) => this.collectItem(item.kind));
@@ -776,7 +789,7 @@ export class GameScene {
     this.items.spawn("bomb", { x, y }, 0, true);
   }
 
-  private dropSpellPowerItems(x: number, y: number) {
+  private dropSpellChangeItems(x: number, y: number) {
     for (let i = 0; i < 12; i += 1) {
       const angle = -Math.PI * 0.9 + (Math.PI * 0.8 * i) / 11;
       const radius = 18 + (i % 3) * 12;
