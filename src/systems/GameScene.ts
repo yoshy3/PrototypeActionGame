@@ -118,6 +118,7 @@ export class GameScene {
 
     if (this.input.wasPressed("escape") && (this.state === "playing" || this.state === "paused")) {
       this.state = this.state === "playing" ? "paused" : "playing";
+      this.audio.setPaused(this.state === "paused");
       this.overlay.text = this.state === "paused" ? "PAUSED\n\nEsc to resume\nR to retry   Z / SPACE to title" : "";
     }
     if (this.input.wasPressed("m")) {
@@ -163,6 +164,7 @@ export class GameScene {
     this.updateBanner(dt);
     if (!this.announcedBoss && this.time >= bossStartTime - 2.1) {
       this.announcedBoss = true;
+      this.audio.warning();
       this.showBanner("WARNING\nLunar Witch approaches", 2.0);
     }
 
@@ -186,6 +188,7 @@ export class GameScene {
       this.boss = new Boss(this.difficulty);
       this.bossPhase = this.boss.getPhase();
       this.playfield.addChild(this.boss.container);
+      this.audio.playMusic("boss");
       this.audio.bossAppear();
     }
     this.boss?.update(dt, this.bullets);
@@ -214,10 +217,12 @@ export class GameScene {
 
     if (!this.player.alive) {
       this.state = "gameover";
+      this.audio.playMusic("gameover");
       this.finishRun("GAME OVER");
     } else if (this.boss && !this.boss.alive && this.clearTimer <= 0) {
       this.state = "clear";
       this.addScore(this.player.hp * 1000 + this.bombs * 750 + this.graze * 5);
+      this.audio.playMusic("clear");
       this.finishRun("STAGE CLEAR");
       if (!this.playedClear) {
         this.playedClear = true;
@@ -231,6 +236,8 @@ export class GameScene {
   private start(options: StartOptions = {}) {
     const bossDebug = DEV_BOSS_START_ENABLED && options.bossDebug === true;
     this.audio.resume();
+    this.audio.setPaused(false);
+    this.audio.playMusic(bossDebug ? "boss" : "stage");
     this.state = "playing";
     this.time = bossDebug ? bossStartTime : 0;
     this.spawnIndex = bossDebug ? stageSpawns.length : 0;
@@ -270,6 +277,8 @@ export class GameScene {
 
   private showTitle() {
     this.state = "title";
+    this.audio.setPaused(false);
+    this.audio.playMusic("title");
     this.bullets.clear();
     this.items.clear();
     for (const enemy of this.enemies) {
@@ -322,6 +331,7 @@ export class GameScene {
             this.addScore(5000);
             this.clearTimer = 0.8;
             this.bullets.clear("enemy");
+            this.audio.bossDefeated();
             this.dropBossItems(this.boss.pos.x, this.boss.pos.y);
             this.shake(0.42, 9);
             this.spark(this.boss.pos.x, this.boss.pos.y, 0xffffff, 48);
@@ -519,6 +529,7 @@ export class GameScene {
       if (this.boss.damage(42)) {
         this.addScore(5000);
         this.clearTimer = 0.8;
+        this.audio.bossDefeated();
         this.dropBossItems(this.boss.pos.x, this.boss.pos.y);
       }
       this.spark(this.boss.pos.x, this.boss.pos.y, 0xaefdf2, 32);
@@ -566,10 +577,10 @@ export class GameScene {
       this.floatText("+ITEM", this.player.pos.x + 22, this.player.pos.y - 18, 0x9ffff4);
       if (this.powerLevel > previousLevel && this.state !== "clear") {
         this.showBanner(`POWER UP\nLevel ${this.powerLevel + 1}`, 1.0);
-        this.audio.spellChange();
+        this.audio.powerUp();
       }
     }
-    this.audio.graze();
+    this.audio.itemCollect(kind);
   }
 
   private get difficulty(): DifficultyConfig {
