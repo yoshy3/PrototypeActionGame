@@ -1,5 +1,5 @@
 import { AnimatedSprite, Assets, Container, Graphics, Rectangle, Text, Texture } from "pixi.js";
-import type { BulletKind, BulletOwner, ItemKind } from "./types";
+import type { BossKind, BulletKind, BulletOwner, ItemKind, StageEnemyKind } from "./types";
 
 export type CharacterAnimationState = "idle" | "left" | "right" | "hit";
 
@@ -13,7 +13,17 @@ type CharacterSheetConfig = {
 const stateRows: CharacterAnimationState[] = ["idle", "left", "right", "hit"];
 const characterSheets = {
   boss: { cellSize: 256, displaySize: 128, url: new URL("../assets/characters/boss-lunar-witch-sheet.png", import.meta.url).href },
+  bossStarlightOracle: {
+    cellSize: 256,
+    displaySize: 128,
+    url: new URL("../assets/characters/boss-starlight-oracle-sheet.png", import.meta.url).href
+  },
   enemy: { cellSize: 96, displaySize: 48, url: new URL("../assets/characters/enemy-moth-sheet.png", import.meta.url).href },
+  enemyCrystal: {
+    cellSize: 96,
+    displaySize: 48,
+    url: new URL("../assets/characters/enemy-crystal-sheet.png", import.meta.url).href
+  },
   player: { cellSize: 128, displaySize: 64, url: new URL("../assets/characters/player-sheet.png", import.meta.url).href }
 } satisfies Record<string, CharacterSheetConfig>;
 
@@ -87,18 +97,22 @@ export class CharacterVisual extends Container {
 
 export const createPlayerVisual = () => createCharacterVisual("player");
 
-export const createEnemyVisual = () => createCharacterVisual("enemy");
+export const createEnemyVisual = (kind: StageEnemyKind = "moth") =>
+  createCharacterVisual(kind === "crystal" ? "enemyCrystal" : "enemy");
 
-export const createBossVisual = () => {
+export const createBossVisual = (kind: BossKind = "lunarWitch") => {
   const container = new Container();
-  const character = createCharacterVisual("boss");
+  const character = createCharacterVisual(kind === "starlightOracle" ? "bossStarlightOracle" : "boss");
   character.name = "character";
 
   const aura = new Graphics();
-  aura.circle(0, 0, 64).stroke({ color: 0xffd7fb, width: 2, alpha: 0.38 });
+  aura.circle(0, 0, 64).stroke({ color: kind === "starlightOracle" ? 0xfff4a8 : 0xffd7fb, width: 2, alpha: 0.38 });
   aura.circle(0, 0, 48).stroke({ color: 0x92fff1, width: 2, alpha: 0.32 });
 
-  const label = new Text({ text: "LUNAR WITCH", style: { fill: 0xffe5f6, fontSize: 13, letterSpacing: 0 } });
+  const label = new Text({
+    text: kind === "starlightOracle" ? "STARLIGHT ORACLE" : "LUNAR WITCH",
+    style: { fill: 0xffe5f6, fontSize: 13, letterSpacing: 0 }
+  });
   label.anchor.set(0.5);
   label.y = 68;
 
@@ -169,6 +183,30 @@ export const createBulletVisual = (owner: BulletOwner, kind: BulletKind, radius:
   }
 
   return g;
+};
+
+export const createLaserVisual = (owner: BulletOwner, length: number, width: number) => {
+  const g = new Graphics();
+  drawLaserVisual(g, owner, length, width, 0);
+  return g;
+};
+
+export const drawLaserVisual = (g: Graphics, owner: BulletOwner, length: number, width: number, activeRatio: number) => {
+  g.clear();
+  const active = activeRatio >= 1;
+  const core = owner === "enemy" ? 0xffffff : 0xeaffff;
+  const outer = owner === "enemy" ? 0xff72bd : 0x92fff1;
+  const inner = owner === "enemy" ? 0xfff4a8 : 0xa8fff8;
+
+  if (!active) {
+    g.moveTo(0, 0).lineTo(length, 0).stroke({ color: outer, width: 1, alpha: 0.2 + activeRatio * 0.22 });
+    g.moveTo(0, 0).lineTo(length, 0).stroke({ color: core, width: 1, alpha: 0.24 + activeRatio * 0.28 });
+    return;
+  }
+
+  g.moveTo(0, 0).lineTo(length, 0).stroke({ color: outer, width: width + 4, alpha: 0.18 });
+  g.moveTo(0, 0).lineTo(length, 0).stroke({ color: inner, width: width, alpha: 0.78 });
+  g.moveTo(0, 0).lineTo(length, 0).stroke({ color: core, width: Math.max(1.5, width * 0.28), alpha: 0.94 });
 };
 
 export const createItemVisual = (kind: ItemKind) => {

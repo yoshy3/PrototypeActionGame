@@ -13,6 +13,7 @@ export class Enemy implements Actor {
   alive = true;
   private age = 0;
   private fireTimer = 0.5;
+  private fireLockTimer = 0;
   private disposed = false;
   private readonly body: CharacterVisual;
 
@@ -24,7 +25,7 @@ export class Enemy implements Actor {
     this.pos.x = spawn.x;
     this.pos.y = spawn.y;
 
-    this.body = createEnemyVisual();
+    this.body = createEnemyVisual(spawn.kind);
     this.container.addChild(this.body);
     this.container.position.set(this.pos.x, this.pos.y);
   }
@@ -35,9 +36,12 @@ export class Enemy implements Actor {
     }
 
     this.age += dt;
+    this.fireLockTimer = Math.max(0, this.fireLockTimer - dt);
 
     const side = this.spawn.mirror ? -1 : 1;
-    this.move(dt, side);
+    if (this.fireLockTimer <= 0) {
+      this.move(dt, side);
+    }
     this.container.position.set(this.pos.x, this.pos.y);
     this.container.rotation = Math.sin(this.age * 3) * 0.08;
     this.body.update(dt, "idle");
@@ -119,6 +123,32 @@ export class Enemy implements Actor {
       return;
     }
 
+    if (pattern === "laserSlash") {
+      const angle = Math.atan2(800 - this.pos.y, playerX - this.pos.x);
+      bullets.spawnLaser("enemy", { x: this.pos.x, y: this.pos.y + 8 }, angle, 270, 5, 0.72, 0.36, 1, 300 * this.difficulty.bulletSpeed, 0.52);
+      this.fireLockTimer = Math.max(this.fireLockTimer, 0.92);
+      bullets.spawn("enemy", "petal", this.pos, polar(Math.PI / 2, 120 * this.difficulty.bulletSpeed), 7, 1);
+      return;
+    }
+
+    if (pattern === "laserGate") {
+      const targetY = 760 + Math.sin(this.age * 3) * 70;
+      const angle = Math.atan2(targetY - this.pos.y, playerX - this.pos.x);
+      bullets.spawnLaser("enemy", { x: this.pos.x, y: this.pos.y + 8 }, angle, 310, 5, 0.74, 0.38, 1, 310 * this.difficulty.bulletSpeed, 0.54);
+      this.fireLockTimer = Math.max(this.fireLockTimer, 0.96);
+      bullets.spawn("enemy", "star", this.pos, polar(angle - 0.22, 140 * this.difficulty.bulletSpeed), 7, 1);
+      bullets.spawn("enemy", "star", this.pos, polar(angle + 0.22, 140 * this.difficulty.bulletSpeed), 7, 1);
+      return;
+    }
+
+    if (pattern === "laserSnipe") {
+      const angle = Math.atan2(780 - this.pos.y, playerX - this.pos.x);
+      bullets.spawnLaser("enemy", this.pos, angle, 330, 6, 0.78, 0.36, 1, 320 * this.difficulty.bulletSpeed, 0.54);
+      this.fireLockTimer = Math.max(this.fireLockTimer, 0.94);
+      bullets.spawn("enemy", "orb", this.pos, polar(angle, 170 * this.difficulty.bulletSpeed), 8, 1);
+      return;
+    }
+
     for (let i = -1; i <= 1; i += 1) {
       bullets.spawn("enemy", "orb", this.pos, polar(Math.PI / 2 + i * 0.22, 155 * this.difficulty.bulletSpeed), 9, 1);
     }
@@ -143,6 +173,9 @@ export class Enemy implements Actor {
   }
 
   private getFireDelay(pattern: StageEnemyPattern) {
+    if (pattern === "laserSlash" || pattern === "laserGate" || pattern === "laserSnipe") {
+      return 1.18;
+    }
     if (pattern === "cross" || pattern === "wheel") {
       return 0.85;
     }

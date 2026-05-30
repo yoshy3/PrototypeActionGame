@@ -2,24 +2,27 @@ import { Application, Assets, Container, Graphics, Sprite, Text, Texture } from 
 import { AudioSystem } from "./AudioSystem";
 import { Boss } from "./Boss";
 import { BulletSystem } from "./BulletSystem";
-import { circlesOverlap } from "./Collision";
+import { circlesOverlap, distanceToSegment } from "./Collision";
 import { difficulties, type DifficultyConfig, type DifficultyId } from "./Difficulty";
 import { Enemy } from "./Enemy";
 import { Input } from "./Input";
 import { ItemSystem } from "./ItemSystem";
 import { MAX_POWER, Player, POWER_STEP } from "./Player";
-import { bossStartTime, stageSpawns } from "./StageScript";
+import { stages } from "./StageScript";
 
-type GameState = "boot" | "title" | "playing" | "paused" | "clear" | "gameover";
+type GameState = "boot" | "title" | "playing" | "paused" | "stageClearPause" | "stageTransition" | "clear" | "gameover";
 const HIGH_SCORE_KEY = "moonlit-spell-barrage.highScores";
 const LEGACY_HIGH_SCORE_KEY = "moonlit-spell-barrage.highScore";
 const TITLE_IMAGE_URL = new URL("../assets/images/title.png", import.meta.url).href;
 const AUTO_COLLECT_LINE_Y = 340;
 const ITEM_COLLECT_RADIUS = 40;
+const FIRST_EXTEND_SCORE = 10000;
+const EXTEND_SCORE_STEP = 20000;
 const DEV_BOSS_START_ENABLED = import.meta.env.DEV;
 type HighScores = Record<DifficultyId, number>;
 type StartOptions = {
   bossDebug?: boolean;
+  stageDebug?: number;
 };
 
 export class GameScene {
@@ -98,6 +101,10 @@ export class GameScene {
   private playedClear = false;
   private bossPhase = 0;
   private difficultyIndex = 0;
+  private currentStageIndex = 0;
+  private nextExtendScore = FIRST_EXTEND_SCORE;
+  private stageClearTimer = 0;
+  private stageTransitionTimer = 0;
 
   constructor(private readonly app: Application) {}
 
@@ -165,6 +172,8 @@ export class GameScene {
 
     if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("b")) {
       this.start({ bossDebug: true });
+    } else if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("v")) {
+      this.start({ stageDebug: 2 });
     } else if (this.state === "title" && this.input.wasPressed("z", " ", "enter")) {
       this.start();
     } else if (this.state === "paused" && this.input.wasPressed("r")) {
@@ -181,6 +190,18 @@ export class GameScene {
       this.updateTitleSelection();
     }
 
+    if (this.state === "stageClearPause") {
+      this.updateStageClearPause(dt);
+      this.input.endFrame();
+      return;
+    }
+
+    if (this.state === "stageTransition") {
+      this.updateStageTransition(dt);
+      this.input.endFrame();
+      return;
+    }
+
     if (this.state === "clear") {
       this.updateClearState(dt);
       this.input.endFrame();
@@ -195,10 +216,10 @@ export class GameScene {
     this.time += dt;
     this.clearTimer = Math.max(0, this.clearTimer - dt);
     this.updateBanner(dt);
-    if (!this.announcedBoss && this.time >= bossStartTime - 2.1) {
+    if (!this.announcedBoss && this.time >= this.currentStage.bossStartTime - 2.1) {
       this.announcedBoss = true;
       this.audio.warning();
-      this.showBanner("WARNING\nLunar Witch approaches", 2.0);
+      this.showBanner(`WARNING\n${this.currentStage.warningText}`, 2.0);
     }
 
     if (this.player.update(dt, this.input, this.bullets, { width: 720, height: 960 }, this.power)) {
@@ -220,14 +241,14 @@ export class GameScene {
       enemy.container.scale.set(1 + Math.max(0, enemy.container.scale.x - 1 - dt * 5));
     }
 
-    if (!this.boss && this.time >= bossStartTime) {
-      this.boss = new Boss(this.difficulty);
+    if (!this.boss && this.time >= this.currentStage.bossStartTime) {
+      this.boss = new Boss(this.difficulty, this.currentStage.bossKind);
       this.bossPhase = this.boss.getPhase();
       this.playfield.addChild(this.boss.container);
       this.audio.playMusic("boss");
       this.audio.bossAppear();
     }
-    this.boss?.update(dt, this.bullets);
+    this.boss?.update(dt, this.bullets, this.player.pos);
     if (this.boss?.alive) {
       if (this.boss.phaseChanged && this.boss.getPhase() !== this.bossPhase) {
         this.bossPhase = this.boss.getPhase();
@@ -236,6 +257,9 @@ export class GameScene {
         this.showBanner(`SPELL ${this.bossPhase + 1}\n${this.boss.getSpellName()}`, 1.7);
         this.shake(0.28, 5);
         this.spark(this.boss.pos.x, this.boss.pos.y, 0xffe2f3, 34);
+        if (this.currentStage.id === 2) {
+          this.dropSpellPowerItems(this.boss.pos.x, this.boss.pos.y);
+        }
       }
       this.boss.container.scale.set(1 + Math.max(0, this.boss.container.scale.x - 1 - dt * 4));
     }
@@ -256,13 +280,17 @@ export class GameScene {
       this.audio.playMusic("gameover");
       this.finishRun("GAME OVER");
     } else if (this.boss && !this.boss.alive && this.clearTimer <= 0) {
-      this.state = "clear";
-      this.addScore(this.player.hp * 1000 + this.bombs * 750 + this.graze * 5);
-      this.audio.playMusic("clear");
-      this.finishRun("STAGE CLEAR");
-      if (!this.playedClear) {
-        this.playedClear = true;
-        this.audio.clear();
+      if (this.currentStageIndex < stages.length - 1) {
+        this.beginStageClearPause();
+      } else {
+        this.state = "clear";
+        this.addScore(this.player.hp * 1000 + this.bombs * 750 + this.graze * 5);
+        this.audio.playMusic("clear");
+        this.finishRun("STAGE CLEAR");
+        if (!this.playedClear) {
+          this.playedClear = true;
+          this.audio.clear();
+        }
       }
     }
 
@@ -271,20 +299,24 @@ export class GameScene {
 
   private start(options: StartOptions = {}) {
     const bossDebug = DEV_BOSS_START_ENABLED && options.bossDebug === true;
+    const stageDebug = DEV_BOSS_START_ENABLED ? options.stageDebug ?? 1 : 1;
     this.audio.resume();
     this.audio.setPaused(false);
     this.audio.playMusic(bossDebug ? "boss" : "stage");
     this.state = "playing";
+    this.currentStageIndex = Math.max(0, Math.min(stages.length - 1, stageDebug - 1));
     this.titleArt.visible = false;
     this.playfield.visible = true;
     this.overlay.position.set(360, 460);
-    this.time = bossDebug ? bossStartTime : 0;
-    this.spawnIndex = bossDebug ? stageSpawns.length : 0;
+    this.time = bossDebug ? this.currentStage.bossStartTime : 0;
+    this.spawnIndex = bossDebug ? this.currentStage.spawns.length : 0;
     this.score = 0;
     this.graze = 0;
-    this.power = bossDebug ? MAX_POWER : 0;
+    this.power = bossDebug || this.currentStageIndex > 0 ? MAX_POWER : 0;
     this.bombs = 2;
+    this.nextExtendScore = FIRST_EXTEND_SCORE;
     this.clearTimer = 0;
+    this.stageClearTimer = 0;
     this.flashTimer = 0;
     this.bannerTimer = 0;
     this.announcedBoss = bossDebug;
@@ -311,6 +343,8 @@ export class GameScene {
     }
     if (bossDebug) {
       this.showBanner("BOSS DEBUG\nFull power start", 1.4);
+    } else if (this.currentStageIndex > 0) {
+      this.showBanner(`${this.currentStage.title.toUpperCase()}\nFull power debug start`, 1.4);
     }
   }
 
@@ -332,7 +366,7 @@ export class GameScene {
     this.hideClearResult();
     this.overlay.position.set(360, 560);
     this.overlay.text = `Difficulty: ${this.difficulty.label}\n\nLeft/Right or 1-3 to change\nZ / SPACE to start${
-      DEV_BOSS_START_ENABLED ? "\nB to start boss debug" : ""
+      DEV_BOSS_START_ENABLED ? "\nB to start boss debug   V for Stage 2" : ""
     }`;
     this.hud.text = `Move: Arrow/WASD/Pad   Shot: Z/A   Bomb: X/X\nFocus: Shift/RB   M: ${
       this.audio.isMuted() ? "Sound Off" : "Sound On"
@@ -361,8 +395,8 @@ export class GameScene {
   }
 
   private spawnEnemies() {
-    while (this.spawnIndex < stageSpawns.length && stageSpawns[this.spawnIndex].time <= this.time) {
-      const enemy = new Enemy(stageSpawns[this.spawnIndex], this.difficulty);
+    while (this.spawnIndex < this.currentStage.spawns.length && this.currentStage.spawns[this.spawnIndex].time <= this.time) {
+      const enemy = new Enemy(this.currentStage.spawns[this.spawnIndex], this.difficulty);
       this.enemies.push(enemy);
       this.playfield.addChild(enemy.container);
       this.spawnIndex += 1;
@@ -389,6 +423,7 @@ export class GameScene {
           this.bullets.kill(bullet);
           if (this.boss.damage(bullet.damage)) {
             this.addScore(5000);
+            this.awardLife("BOSS BONUS");
             this.clearTimer = 0.8;
             this.bullets.clear("enemy");
             this.audio.bossDefeated();
@@ -401,6 +436,7 @@ export class GameScene {
         }
       } else if (this.player.alive && circlesOverlap(bullet.pos, bullet.radius, this.player.pos, this.player.radius)) {
         if (this.player.damage()) {
+          this.power = Math.max(0, this.power - POWER_STEP);
           this.audio.playerHit();
           this.bullets.kill(bullet);
           this.bullets.clear("enemy");
@@ -413,6 +449,43 @@ export class GameScene {
         circlesOverlap(bullet.pos, bullet.radius + 28, this.player.pos, this.player.radius)
       ) {
         bullet.grazed = true;
+        this.graze += 1;
+        this.addScore(15);
+        this.audio.graze();
+        this.floatText("+GRAZE", this.player.pos.x + 24, this.player.pos.y - 18, 0xaefdf2);
+      }
+    }
+
+    for (const laser of this.bullets.lasers) {
+      if (
+        laser.owner !== "enemy" ||
+        !laser.alive ||
+        laser.age < laser.warningTime ||
+        !this.player.alive ||
+        this.player.invincible > 0
+      ) {
+        continue;
+      }
+
+      const start = {
+        x: laser.origin.x + Math.cos(laser.angle) * laser.offset,
+        y: laser.origin.y + Math.sin(laser.angle) * laser.offset
+      };
+      const end = {
+        x: start.x + Math.cos(laser.angle) * laser.visibleLength,
+        y: start.y + Math.sin(laser.angle) * laser.visibleLength
+      };
+      const distance = distanceToSegment(this.player.pos, start, end);
+      if (distance <= laser.width * 0.5 + this.player.radius) {
+        if (this.player.damage()) {
+          this.power = Math.max(0, this.power - POWER_STEP);
+          this.audio.playerHit();
+          this.bullets.clear("enemy");
+          this.shake(0.34, 8);
+          this.spark(this.player.pos.x, this.player.pos.y, 0x9effff, 24);
+        }
+      } else if (!laser.grazed && distance <= laser.width * 0.5 + this.player.radius + 28) {
+        laser.grazed = true;
         this.graze += 1;
         this.addScore(15);
         this.audio.graze();
@@ -435,7 +508,7 @@ export class GameScene {
     }/${MAX_POWER}   Graze: ${this.graze}\nScore: ${this.score}   ${this.audio.isMuted() ? "Muted" : "Sound"}`;
     this.subHud.text = this.boss?.alive
       ? `${this.boss.getSpellName()}: ${Math.max(0, Math.ceil(this.boss.hp))} HP   Focus with Shift/RB`
-      : "Stage 1: Moonlit shrine approach   Auto-collect above the top line";
+      : `${this.currentStage.title}: ${this.currentStage.subtitle}   Auto-collect above the top line`;
   }
 
   private finishRun(title: string) {
@@ -526,7 +599,7 @@ export class GameScene {
     const width = 510;
     const x = 105;
     const y = 104;
-    const ratio = Math.min(1, this.boss?.alive ? 1 : this.time / bossStartTime);
+    const ratio = Math.min(1, this.boss?.alive ? 1 : this.time / this.currentStage.bossStartTime);
     this.stageProgress.roundRect(x, y, width, 5, 3).fill({ color: 0xffffff, alpha: 0.12 });
     this.stageProgress.roundRect(x, y, width * ratio, 5, 3).fill({ color: 0xaefdf2, alpha: 0.72 });
 
@@ -568,6 +641,83 @@ export class GameScene {
     }
   }
 
+  private awardLife(label: string) {
+    this.player.addLife();
+    this.floatText("+1 LIFE", this.player.pos.x, this.player.pos.y - 48, 0xfff4a8);
+    this.showBanner(label, 1.0);
+  }
+
+  private beginStageClearPause() {
+    this.state = "stageClearPause";
+    this.stageClearTimer = 4.0;
+    this.audio.playMusic("clear");
+    this.audio.clear();
+    this.bullets.clear();
+    this.items.clear();
+    this.boss?.container.destroy();
+    this.boss = null;
+    for (const enemy of this.enemies) {
+      enemy.destroy();
+    }
+    this.enemies.length = 0;
+    this.overlay.text = "";
+    this.banner.text = "";
+    this.clearFx.visible = true;
+    this.clearFxTimer = 0;
+    this.clearTitle.text = `${this.currentStage.title.toUpperCase()} CLEAR`;
+    this.clearStats.text = `${this.difficulty.label} Score ${this.score}\nPower Lv${this.powerLevel + 1} ${this.power}/${MAX_POWER}   Graze ${this.graze}`;
+    this.clearHint.text = "NEXT STAGE\nGet ready";
+    this.updateClearResult(0);
+  }
+
+  private updateStageClearPause(dt: number) {
+    this.stageClearTimer = Math.max(0, this.stageClearTimer - dt);
+    this.updateClearResult(dt);
+    this.updateHud();
+    if (this.stageClearTimer <= 0) {
+      this.clearHint.text = "NEXT STAGE\nPress Z / SPACE";
+    }
+    if (this.stageClearTimer <= 0 && this.input.wasPressed("z", " ", "enter")) {
+      this.hideClearResult();
+      this.beginNextStage();
+    }
+  }
+
+  private beginNextStage() {
+    this.currentStageIndex += 1;
+    this.state = "stageTransition";
+    this.stageTransitionTimer = 2.2;
+    this.time = 0;
+    this.spawnIndex = 0;
+    this.clearTimer = 0;
+    this.announcedBoss = false;
+    this.bossPhase = 0;
+    this.audio.playMusic("stage");
+    this.overlay.position.set(360, 460);
+    this.overlay.text = `${this.currentStage.title.toUpperCase()}\n\n${this.currentStage.subtitle}`;
+    this.bullets.clear();
+    this.items.clear();
+    this.boss?.container.destroy();
+    this.boss = null;
+    for (const enemy of this.enemies) {
+      enemy.destroy();
+    }
+    this.enemies.length = 0;
+    this.player.prepareForNextStage();
+    this.updateHud();
+  }
+
+  private updateStageTransition(dt: number) {
+    this.stageTransitionTimer = Math.max(0, this.stageTransitionTimer - dt);
+    this.drawStageProgress();
+    this.updateHud();
+    if (this.stageTransitionTimer <= 0) {
+      this.state = "playing";
+      this.overlay.text = "";
+      this.showBanner(`${this.currentStage.title.toUpperCase()}\n${this.currentStage.subtitle}`, 1.4);
+    }
+  }
+
   private useBomb() {
     this.bombs -= 1;
     this.audio.bomb();
@@ -588,6 +738,7 @@ export class GameScene {
     if (this.boss?.alive && this.boss.entered) {
       if (this.boss.damage(42)) {
         this.addScore(5000);
+        this.awardLife("BOSS BONUS");
         this.clearTimer = 0.8;
         this.audio.bossDefeated();
         this.dropBossItems(this.boss.pos.x, this.boss.pos.y);
@@ -625,6 +776,19 @@ export class GameScene {
     this.items.spawn("bomb", { x, y }, 0, true);
   }
 
+  private dropSpellPowerItems(x: number, y: number) {
+    for (let i = 0; i < 12; i += 1) {
+      const angle = -Math.PI * 0.9 + (Math.PI * 0.8 * i) / 11;
+      const radius = 18 + (i % 3) * 12;
+      this.items.spawn(
+        "score",
+        { x: x + Math.cos(angle) * radius, y: y + 18 + Math.sin(angle) * radius },
+        Math.cos(angle) * 95,
+        true
+      );
+    }
+  }
+
   private collectItem(kind: "score" | "bomb") {
     if (kind === "bomb") {
       this.bombs = Math.min(4, this.bombs + 1);
@@ -645,6 +809,10 @@ export class GameScene {
 
   private get difficulty(): DifficultyConfig {
     return difficulties[this.difficultyIndex];
+  }
+
+  private get currentStage() {
+    return stages[this.currentStageIndex];
   }
 
   private get powerLevel() {
@@ -674,6 +842,10 @@ export class GameScene {
 
   private addScore(baseScore: number) {
     this.score += Math.round(baseScore * this.difficulty.score);
+    while (this.score >= this.nextExtendScore) {
+      this.awardLife("EXTEND");
+      this.nextExtendScore += EXTEND_SCORE_STEP;
+    }
   }
 
   private updateBanner(dt: number) {

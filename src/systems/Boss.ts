@@ -2,7 +2,7 @@ import { Container } from "pixi.js";
 import type { DifficultyConfig } from "./Difficulty";
 import { polar } from "./math";
 import type { BulletSystem } from "./BulletSystem";
-import type { Actor } from "./types";
+import type { Actor, BossKind, Vector } from "./types";
 import { CharacterVisual, createBossVisual } from "./VisualFactory";
 
 export class Boss implements Actor {
@@ -17,24 +17,31 @@ export class Boss implements Actor {
   private age = 0;
   private moveAge = 0;
   private fireTimer = 0.2;
+  private fireLockTimer = 0;
   private phase = 0;
   private readonly body: CharacterVisual;
+  private target: Vector = { x: 360, y: 820 };
 
-  constructor(private readonly difficulty: DifficultyConfig) {
-    this.maxHp = Math.ceil(3120 * difficulty.bossHp);
+  constructor(
+    private readonly difficulty: DifficultyConfig,
+    private readonly kind: BossKind = "lunarWitch"
+  ) {
+    this.maxHp = Math.ceil((kind === "starlightOracle" ? 4200 : 3120) * difficulty.bossHp);
     this.hp = this.maxHp;
-    const visual = createBossVisual();
+    const visual = createBossVisual(kind);
     this.body = visual.character;
     this.container.addChild(visual.container);
     this.container.position.set(this.pos.x, this.pos.y);
   }
 
-  update(dt: number, bullets: BulletSystem) {
+  update(dt: number, bullets: BulletSystem, player: Vector) {
     if (!this.alive) {
       return;
     }
 
     this.age += dt;
+    this.fireLockTimer = Math.max(0, this.fireLockTimer - dt);
+    this.target = { ...player };
     const previousX = this.pos.x;
     if (!this.entered) {
       this.pos.y += 95 * dt;
@@ -43,7 +50,7 @@ export class Boss implements Actor {
         this.entered = true;
         this.moveAge = 0;
       }
-    } else {
+    } else if (this.fireLockTimer <= 0) {
       this.moveAge += dt;
       this.pos.x = 360 + Math.sin(this.moveAge * 0.75) * 135;
       this.pos.y = 145 + Math.sin(this.moveAge * 1.15) * 24;
@@ -72,6 +79,16 @@ export class Boss implements Actor {
   }
 
   getSpellName() {
+    if (this.kind === "starlightOracle") {
+      return [
+        "Crystal Dawn Ray",
+        "Astral Crosslight",
+        "Prism Diagonal Gate",
+        "Starlight Meridian",
+        "Oracle's Luminous Verdict"
+      ][this.phase];
+    }
+
     return [
       "Moonlit Petal Ring",
       "Starfall Spiral",
@@ -121,6 +138,11 @@ export class Boss implements Actor {
   }
 
   private fireSpell(bullets: BulletSystem) {
+    if (this.kind === "starlightOracle") {
+      this.fireStarlightSpell(bullets);
+      return;
+    }
+
     if (this.phase === 0) {
       this.fireFlower(bullets);
       this.fireTimer = 0.42 * this.difficulty.fireDelay;
@@ -137,6 +159,80 @@ export class Boss implements Actor {
       this.fireFinale(bullets);
       this.fireTimer = 0.22 * this.difficulty.fireDelay;
     }
+  }
+
+  private fireStarlightSpell(bullets: BulletSystem) {
+    if (this.phase === 0) {
+      this.fireFlower(bullets);
+      if (Math.floor(this.age * 2.2) % 2 === 0) {
+        this.fireBossLaserFan(bullets, 2, 420, 6);
+      }
+      this.fireTimer = 0.4 * this.difficulty.fireDelay;
+    } else if (this.phase === 1) {
+      this.fireSpiral(bullets);
+      if (Math.floor(this.age * 3) % 3 === 0) {
+        this.fireAimedLaser(bullets, { x: this.pos.x - 60, y: this.pos.y + 22 }, 520, 6, -0.18);
+        this.fireAimedLaser(bullets, { x: this.pos.x + 60, y: this.pos.y + 22 }, 520, 6, 0.18);
+      }
+      this.fireTimer = 0.18 * this.difficulty.fireDelay;
+    } else if (this.phase === 2) {
+      this.fireButterflyStorm(bullets);
+      this.fireBossLaserFan(bullets, 3, 560, 7);
+      this.fireTimer = 0.34 * this.difficulty.fireDelay;
+    } else if (this.phase === 3) {
+      this.fireStarBloom(bullets);
+      this.fireAimedLaser(bullets, { x: this.pos.x, y: this.pos.y + 8 }, 700, 8, 0);
+      if (Math.sin(this.age * 1.6) > 0) {
+        this.fireAimedLaser(bullets, { x: this.pos.x - 90, y: this.pos.y + 58 }, 620, 7, -0.24);
+        this.fireAimedLaser(bullets, { x: this.pos.x + 90, y: this.pos.y + 58 }, 620, 7, 0.24);
+      }
+      this.fireTimer = 0.38 * this.difficulty.fireDelay;
+    } else {
+      this.fireFinale(bullets);
+      this.fireBossLaserFan(bullets, 4, 720, 8);
+      this.fireTimer = 0.3 * this.difficulty.fireDelay;
+    }
+  }
+
+  private fireBossLaserFan(bullets: BulletSystem, count: number, length: number, width: number) {
+    const center = this.angleToTarget({ x: this.pos.x, y: this.pos.y + 18 });
+    const spread = count <= 2 ? 0.28 : 0.46;
+    for (let i = 0; i < count; i += 1) {
+      const t = count === 1 ? 0 : i / (count - 1) - 0.5;
+      bullets.spawnLaser(
+        "enemy",
+        { x: this.pos.x, y: this.pos.y + 18 },
+        center + t * spread,
+        length,
+        width,
+        0.82,
+        0.42,
+        1,
+        360 * this.difficulty.bulletSpeed,
+        0.66
+      );
+    }
+    this.fireLockTimer = Math.max(this.fireLockTimer, 1.1);
+  }
+
+  private fireAimedLaser(bullets: BulletSystem, origin: Vector, length: number, width: number, angleOffset: number) {
+    bullets.spawnLaser(
+      "enemy",
+      origin,
+      this.angleToTarget(origin) + angleOffset,
+      length,
+      width,
+      0.86,
+      0.42,
+      1,
+      370 * this.difficulty.bulletSpeed,
+      0.66
+    );
+    this.fireLockTimer = Math.max(this.fireLockTimer, 1.1);
+  }
+
+  private angleToTarget(origin: Vector) {
+    return Math.atan2(this.target.y - origin.y, this.target.x - origin.x);
   }
 
   private fireButterflyStorm(bullets: BulletSystem) {

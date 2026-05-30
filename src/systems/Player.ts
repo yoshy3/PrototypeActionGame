@@ -85,6 +85,23 @@ export class Player implements Actor {
     return true;
   }
 
+  addLife(amount = 1) {
+    this.hp += amount;
+    if (this.hp > 0) {
+      this.alive = true;
+      this.container.visible = true;
+    }
+  }
+
+  prepareForNextStage() {
+    this.invincible = 2.4;
+    this.pos.x = 360;
+    this.pos.y = 820;
+    this.container.visible = true;
+    this.container.position.set(this.pos.x, this.pos.y);
+    this.body.reset("idle");
+  }
+
   reset() {
     this.hp = 3;
     this.alive = true;

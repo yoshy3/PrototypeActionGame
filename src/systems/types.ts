@@ -26,6 +26,26 @@ export type Bullet = {
   alive: boolean;
 };
 
+export type Laser = {
+  id: number;
+  owner: BulletOwner;
+  sprite: Graphics;
+  origin: Vector;
+  angle: number;
+  length: number;
+  visibleLength: number;
+  offset: number;
+  width: number;
+  warningTime: number;
+  growTime: number;
+  duration: number;
+  speed: number;
+  damage: number;
+  age: number;
+  grazed: boolean;
+  alive: boolean;
+};
+
 export type CollectibleItem = {
   id: number;
   kind: ItemKind;
@@ -37,7 +57,19 @@ export type CollectibleItem = {
   alive: boolean;
 };
 
-export type StageEnemyPattern = "drift" | "fan" | "cross" | "snipe" | "wheel";
+export type StageEnemyKind = "moth" | "crystal";
+
+export type BossKind = "lunarWitch" | "starlightOracle";
+
+export type StageEnemyPattern =
+  | "drift"
+  | "fan"
+  | "cross"
+  | "snipe"
+  | "wheel"
+  | "laserSlash"
+  | "laserGate"
+  | "laserSnipe";
 
 export type StageEnemyMove = "sway" | "dive" | "arc";
 
@@ -47,8 +79,19 @@ export type EnemySpawn = {
   y: number;
   hp: number;
   pattern: StageEnemyPattern;
+  kind?: StageEnemyKind;
   move?: StageEnemyMove;
   mirror?: boolean;
+};
+
+export type StageDefinition = {
+  id: number;
+  title: string;
+  subtitle: string;
+  warningText: string;
+  bossKind: BossKind;
+  spawns: EnemySpawn[];
+  bossStartTime: number;
 };
 
 export type Actor = {

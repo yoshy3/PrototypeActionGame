@@ -1,6 +1,6 @@
-import type { EnemySpawn } from "./types";
+import type { EnemySpawn, StageDefinition } from "./types";
 
-export const stageSpawns: EnemySpawn[] = [
+const stageOneSpawns: EnemySpawn[] = [
   { time: 1.2, x: 130, y: -40, hp: 18, pattern: "fan" },
   { time: 2.3, x: 590, y: -40, hp: 18, pattern: "fan", mirror: true },
   { time: 3.7, x: 230, y: -40, hp: 22, pattern: "drift", move: "arc" },
@@ -52,4 +52,84 @@ export const stageSpawns: EnemySpawn[] = [
   { time: 79.2, x: 360, y: -40, hp: 42, pattern: "wheel" }
 ];
 
-export const bossStartTime = 88.0;
+const stageTwoSpawns: EnemySpawn[] = [
+  { time: 1.0, x: 150, y: -40, hp: 30, kind: "crystal", pattern: "laserSlash", move: "sway" },
+  { time: 2.4, x: 570, y: -40, hp: 30, kind: "crystal", pattern: "laserSlash", move: "sway", mirror: true },
+  { time: 3.8, x: 250, y: -40, hp: 32, kind: "crystal", pattern: "fan", move: "arc" },
+  { time: 5.0, x: 470, y: -40, hp: 32, kind: "crystal", pattern: "fan", move: "arc", mirror: true },
+  { time: 6.4, x: 360, y: -40, hp: 42, kind: "crystal", pattern: "laserSnipe", move: "dive" },
+
+  { time: 16.8, x: 100, y: -40, hp: 30, kind: "crystal", pattern: "laserGate", move: "sway" },
+  { time: 18.0, x: 620, y: -40, hp: 30, kind: "crystal", pattern: "laserGate", move: "sway", mirror: true },
+  { time: 19.4, x: 210, y: -40, hp: 30, kind: "crystal", pattern: "cross", move: "arc" },
+  { time: 20.5, x: 510, y: -40, hp: 30, kind: "crystal", pattern: "cross", move: "arc", mirror: true },
+  { time: 22.0, x: 360, y: -40, hp: 46, kind: "crystal", pattern: "laserSnipe", move: "dive" },
+  { time: 24.6, x: 150, y: -40, hp: 30, pattern: "wheel" },
+  { time: 25.7, x: 570, y: -40, hp: 30, pattern: "wheel", mirror: true },
+
+  { time: 36.0, x: 90, y: -40, hp: 32, kind: "crystal", pattern: "laserSlash", move: "dive" },
+  { time: 37.0, x: 630, y: -40, hp: 32, kind: "crystal", pattern: "laserSlash", move: "dive", mirror: true },
+  { time: 38.4, x: 230, y: -40, hp: 34, kind: "crystal", pattern: "snipe", move: "arc" },
+  { time: 39.4, x: 490, y: -40, hp: 34, kind: "crystal", pattern: "snipe", move: "arc", mirror: true },
+  { time: 41.0, x: 360, y: -40, hp: 52, kind: "crystal", pattern: "laserGate", move: "arc" },
+  { time: 43.2, x: 170, y: -40, hp: 30, kind: "crystal", pattern: "laserSnipe", move: "dive" },
+  { time: 44.2, x: 550, y: -40, hp: 30, kind: "crystal", pattern: "laserSnipe", move: "dive", mirror: true },
+
+  { time: 53.5, x: 120, y: -40, hp: 32, kind: "crystal", pattern: "fan" },
+  { time: 54.4, x: 240, y: -40, hp: 32, kind: "crystal", pattern: "laserSlash" },
+  { time: 55.3, x: 480, y: -40, hp: 32, kind: "crystal", pattern: "laserSlash", mirror: true },
+  { time: 56.2, x: 600, y: -40, hp: 32, kind: "crystal", pattern: "fan", mirror: true },
+  { time: 58.4, x: 360, y: -40, hp: 58, kind: "crystal", pattern: "wheel", move: "arc" },
+  { time: 60.8, x: 210, y: -40, hp: 34, kind: "crystal", pattern: "laserGate", move: "arc" },
+  { time: 61.8, x: 510, y: -40, hp: 34, kind: "crystal", pattern: "laserGate", move: "arc", mirror: true },
+
+  { time: 68.0, x: 110, y: -40, hp: 36, kind: "crystal", pattern: "laserGate", move: "dive" },
+  { time: 69.0, x: 610, y: -40, hp: 36, kind: "crystal", pattern: "laserGate", move: "dive", mirror: true },
+  { time: 70.2, x: 250, y: -40, hp: 38, kind: "crystal", pattern: "laserSnipe", move: "arc" },
+  { time: 71.2, x: 470, y: -40, hp: 38, kind: "crystal", pattern: "laserSnipe", move: "arc", mirror: true },
+  { time: 72.8, x: 160, y: -40, hp: 34, kind: "crystal", pattern: "laserSlash", move: "dive" },
+  { time: 73.7, x: 560, y: -40, hp: 34, kind: "crystal", pattern: "laserSlash", move: "dive", mirror: true },
+  { time: 75.4, x: 360, y: -40, hp: 64, kind: "crystal", pattern: "wheel", move: "arc" }
+];
+
+const clampSpawnX = (x: number) => Math.max(70, Math.min(650, x));
+
+const doubleStageSpawns = (spawns: EnemySpawn[]) =>
+  spawns
+    .flatMap((spawn) => {
+      const side = spawn.x < 360 ? 1 : -1;
+      const mirroredX = 720 - spawn.x;
+      const offsetX = Math.abs(mirroredX - spawn.x) < 80 ? spawn.x + side * 95 : mirroredX;
+      const extra: EnemySpawn = {
+        ...spawn,
+        time: spawn.time + 0.42,
+        x: clampSpawnX(offsetX),
+        mirror: !spawn.mirror
+      };
+      return [spawn, extra];
+    })
+    .sort((a, b) => a.time - b.time);
+
+export const stages: StageDefinition[] = [
+  {
+    id: 1,
+    title: "Stage 1",
+    subtitle: "Moonlit shrine approach",
+    warningText: "Lunar Witch approaches",
+    bossKind: "lunarWitch",
+    spawns: stageOneSpawns,
+    bossStartTime: 88.0
+  },
+  {
+    id: 2,
+    title: "Stage 2",
+    subtitle: "Starlight crystal corridor",
+    warningText: "Starlight Oracle descends",
+    bossKind: "starlightOracle",
+    spawns: doubleStageSpawns(stageTwoSpawns),
+    bossStartTime: 90.0
+  }
+];
+
+export const stageSpawns = stages[0].spawns;
+export const bossStartTime = stages[0].bossStartTime;
