@@ -1,6 +1,7 @@
 import { Application } from "pixi.js";
 import "./style.css";
 import { GameScene } from "./systems/GameScene";
+import { loadCharacterAssets } from "./systems/VisualFactory";
 
 const app = new Application();
 
@@ -14,6 +15,8 @@ await app.init({
 });
 
 document.querySelector<HTMLDivElement>("#app")?.appendChild(app.canvas);
+
+await loadCharacterAssets();
 
 const scene = new GameScene(app);
 await scene.init();

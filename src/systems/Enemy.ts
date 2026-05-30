@@ -3,7 +3,7 @@ import { polar, clamp } from "./math";
 import type { DifficultyConfig } from "./Difficulty";
 import type { BulletSystem } from "./BulletSystem";
 import type { Actor, EnemySpawn, StageEnemyPattern } from "./types";
-import { createEnemyVisual } from "./VisualFactory";
+import { CharacterVisual, createEnemyVisual } from "./VisualFactory";
 
 export class Enemy implements Actor {
   readonly container = new Container();
@@ -13,6 +13,7 @@ export class Enemy implements Actor {
   alive = true;
   private age = 0;
   private fireTimer = 0.5;
+  private readonly body: CharacterVisual;
 
   constructor(
     private readonly spawn: EnemySpawn,
@@ -22,7 +23,8 @@ export class Enemy implements Actor {
     this.pos.x = spawn.x;
     this.pos.y = spawn.y;
 
-    this.container.addChild(createEnemyVisual());
+    this.body = createEnemyVisual();
+    this.container.addChild(this.body);
     this.container.position.set(this.pos.x, this.pos.y);
   }
 
@@ -37,6 +39,7 @@ export class Enemy implements Actor {
     this.move(dt, side);
     this.container.position.set(this.pos.x, this.pos.y);
     this.container.rotation = Math.sin(this.age * 3) * 0.08;
+    this.body.update(dt, "idle");
 
     this.fireTimer -= dt;
     if (this.fireTimer <= 0) {
@@ -52,6 +55,7 @@ export class Enemy implements Actor {
 
   damage(amount: number) {
     this.hp -= amount;
+    this.body.playHit(0.2);
     this.container.scale.set(1.12);
     if (this.hp <= 0) {
       this.alive = false;

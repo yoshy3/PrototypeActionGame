@@ -3,7 +3,7 @@ import type { DifficultyConfig } from "./Difficulty";
 import { polar } from "./math";
 import type { BulletSystem } from "./BulletSystem";
 import type { Actor } from "./types";
-import { createBossVisual } from "./VisualFactory";
+import { CharacterVisual, createBossVisual } from "./VisualFactory";
 
 export class Boss implements Actor {
   readonly container = new Container();
@@ -17,11 +17,14 @@ export class Boss implements Actor {
   private age = 0;
   private fireTimer = 0.2;
   private phase = 0;
+  private readonly body: CharacterVisual;
 
   constructor(private readonly difficulty: DifficultyConfig) {
     this.maxHp = Math.ceil(520 * difficulty.bossHp);
     this.hp = this.maxHp;
-    this.container.addChild(createBossVisual());
+    const visual = createBossVisual();
+    this.body = visual.character;
+    this.container.addChild(visual.container);
     this.container.position.set(this.pos.x, this.pos.y);
   }
 
@@ -31,6 +34,7 @@ export class Boss implements Actor {
     }
 
     this.age += dt;
+    const previousX = this.pos.x;
     if (!this.entered) {
       this.pos.y += 95 * dt;
       if (this.pos.y >= 145) {
@@ -44,6 +48,8 @@ export class Boss implements Actor {
 
     this.container.position.set(this.pos.x, this.pos.y);
     this.container.rotation = Math.sin(this.age * 0.7) * 0.05;
+    const animationState = this.pos.x < previousX - 0.5 ? "left" : this.pos.x > previousX + 0.5 ? "right" : "idle";
+    this.body.update(dt, animationState);
 
     if (!this.entered) {
       return;
@@ -71,6 +77,7 @@ export class Boss implements Actor {
       return false;
     }
     this.hp -= amount;
+    this.body.playHit(0.24);
     this.container.scale.set(1.04);
     if (this.hp <= 0) {
       this.alive = false;

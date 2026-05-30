@@ -1,17 +1,136 @@
-import { Container, Graphics, Text } from "pixi.js";
+import { AnimatedSprite, Assets, Container, Graphics, Rectangle, Text, Texture } from "pixi.js";
 import type { BulletKind, BulletOwner, ItemKind } from "./types";
 
-export const createPlayerVisual = () => {
-  const body = new Graphics();
-  body
-    .moveTo(0, -20)
-    .lineTo(13, 15)
-    .quadraticCurveTo(0, 8, -13, 15)
-    .closePath()
-    .fill(0xf8f1ff)
-    .stroke({ color: 0x83fff2, width: 2 });
-  body.circle(0, 0, 27).stroke({ color: 0x6dfce9, width: 2, alpha: 0.24 });
-  return body;
+export type CharacterAnimationState = "idle" | "left" | "right" | "hit";
+
+type CharacterFrames = Record<CharacterAnimationState, Texture[]>;
+type CharacterSheetConfig = {
+  cellSize: number;
+  displaySize: number;
+  url: string;
+};
+
+const stateRows: CharacterAnimationState[] = ["idle", "left", "right", "hit"];
+const characterSheets = {
+  boss: { cellSize: 256, displaySize: 128, url: new URL("../assets/characters/boss-lunar-witch-sheet.png", import.meta.url).href },
+  enemy: { cellSize: 96, displaySize: 48, url: new URL("../assets/characters/enemy-moth-sheet.png", import.meta.url).href },
+  player: { cellSize: 128, displaySize: 64, url: new URL("../assets/characters/player-sheet.png", import.meta.url).href }
+} satisfies Record<string, CharacterSheetConfig>;
+
+const loadedFrames = new Map<string, CharacterFrames>();
+
+export const loadCharacterAssets = async () => {
+  await Promise.all(
+    Object.entries(characterSheets).map(async ([key, config]) => {
+      const texture = (await Assets.load(config.url)) as Texture;
+      loadedFrames.set(key, sliceCharacterSheet(texture, config.cellSize));
+    })
+  );
+};
+
+export class CharacterVisual extends Container {
+  private readonly sprite: AnimatedSprite;
+  private state: CharacterAnimationState = "idle";
+  private hitTimer = 0;
+
+  constructor(
+    private readonly frames: CharacterFrames,
+    displaySize: number
+  ) {
+    super();
+    this.sprite = new AnimatedSprite(frames.idle);
+    this.sprite.anchor.set(0.5);
+    this.sprite.animationSpeed = 0.12;
+    this.sprite.width = displaySize;
+    this.sprite.height = displaySize;
+    this.sprite.play();
+    this.addChild(this.sprite);
+  }
+
+  setState(state: CharacterAnimationState) {
+    if (this.hitTimer > 0 && state !== "hit") {
+      return;
+    }
+    if (state === this.state) {
+      return;
+    }
+
+    this.state = state;
+    this.sprite.textures = this.frames[state];
+    this.sprite.gotoAndPlay(0);
+  }
+
+  playHit(seconds = 0.24) {
+    this.hitTimer = Math.max(this.hitTimer, seconds);
+    this.setState("hit");
+  }
+
+  update(dt: number, fallback: CharacterAnimationState = "idle") {
+    if (this.hitTimer <= 0) {
+      this.setState(fallback);
+      return;
+    }
+
+    this.hitTimer = Math.max(0, this.hitTimer - dt);
+    if (this.hitTimer === 0) {
+      this.setState(fallback);
+    }
+  }
+
+  reset(state: CharacterAnimationState = "idle") {
+    this.hitTimer = 0;
+    this.state = state;
+    this.sprite.textures = this.frames[state];
+    this.sprite.gotoAndPlay(0);
+  }
+}
+
+export const createPlayerVisual = () => createCharacterVisual("player");
+
+export const createEnemyVisual = () => createCharacterVisual("enemy");
+
+export const createBossVisual = () => {
+  const container = new Container();
+  const character = createCharacterVisual("boss");
+  character.name = "character";
+
+  const aura = new Graphics();
+  aura.circle(0, 0, 64).stroke({ color: 0xffd7fb, width: 2, alpha: 0.38 });
+  aura.circle(0, 0, 48).stroke({ color: 0x92fff1, width: 2, alpha: 0.32 });
+
+  const label = new Text({ text: "LUNAR WITCH", style: { fill: 0xffe5f6, fontSize: 13, letterSpacing: 0 } });
+  label.anchor.set(0.5);
+  label.y = 68;
+
+  container.addChild(aura, character, label);
+  return { container, character };
+};
+
+const createCharacterVisual = (key: keyof typeof characterSheets) => {
+  const frames = loadedFrames.get(key);
+  if (!frames) {
+    throw new Error(`Character assets must be loaded before creating ${key} visual.`);
+  }
+
+  return new CharacterVisual(frames, characterSheets[key].displaySize);
+};
+
+const sliceCharacterSheet = (texture: Texture, cellSize: number): CharacterFrames => {
+  const frames = {} as CharacterFrames;
+
+  for (let row = 0; row < stateRows.length; row += 1) {
+    frames[stateRows[row]] = [];
+    for (let col = 0; col < 4; col += 1) {
+      frames[stateRows[row]].push(
+        new Texture({
+          source: texture.source,
+          frame: new Rectangle(col * cellSize, row * cellSize, cellSize, cellSize)
+        })
+      );
+    }
+  }
+
+  return frames;
 };
 
 export const createHitMark = (radius: number) => {
@@ -19,35 +138,6 @@ export const createHitMark = (radius: number) => {
   hitMark.circle(0, 0, radius).fill(0xff5eaa);
   hitMark.circle(0, 0, radius + 5).stroke({ color: 0xffffff, width: 1, alpha: 0.8 });
   return hitMark;
-};
-
-export const createEnemyVisual = () => {
-  const body = new Graphics();
-  body.circle(0, 0, 19).fill(0xffd7f0).stroke({ color: 0x7b4dd8, width: 3 });
-  body.moveTo(-25, 2).quadraticCurveTo(-42, 16, -20, 25).stroke({ color: 0xff8bc7, width: 3 });
-  body.moveTo(25, 2).quadraticCurveTo(42, 16, 20, 25).stroke({ color: 0xff8bc7, width: 3 });
-  return body;
-};
-
-export const createBossVisual = () => {
-  const container = new Container();
-
-  const aura = new Graphics();
-  aura.circle(0, 0, 64).stroke({ color: 0xffd7fb, width: 2, alpha: 0.38 });
-  aura.circle(0, 0, 48).stroke({ color: 0x92fff1, width: 2, alpha: 0.32 });
-
-  const body = new Graphics();
-  body.circle(0, -5, 28).fill(0xfff3fb).stroke({ color: 0xe358ad, width: 3 });
-  body.moveTo(-12, 18).lineTo(0, 48).lineTo(12, 18).fill(0x8e58d9);
-  body.moveTo(-32, 2).quadraticCurveTo(-78, 12, -36, 44).stroke({ color: 0xff8bc7, width: 5, alpha: 0.9 });
-  body.moveTo(32, 2).quadraticCurveTo(78, 12, 36, 44).stroke({ color: 0xff8bc7, width: 5, alpha: 0.9 });
-
-  const label = new Text({ text: "LUNAR WITCH", style: { fill: 0xffe5f6, fontSize: 13, letterSpacing: 0 } });
-  label.anchor.set(0.5);
-  label.y = 68;
-
-  container.addChild(aura, body, label);
-  return container;
 };
 
 export const createBulletVisual = (owner: BulletOwner, kind: BulletKind, radius: number) => {

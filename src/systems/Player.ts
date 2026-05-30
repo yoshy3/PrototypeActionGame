@@ -3,7 +3,7 @@ import { clamp, normalize } from "./math";
 import type { Input } from "./Input";
 import type { BulletSystem } from "./BulletSystem";
 import type { Actor } from "./types";
-import { createHitMark, createPlayerVisual } from "./VisualFactory";
+import { CharacterVisual, createHitMark, createPlayerVisual } from "./VisualFactory";
 
 export const POWER_STEP = 40;
 export const MAX_POWER = 120;
@@ -16,7 +16,7 @@ export class Player implements Actor {
   alive = true;
   invincible = 0;
   private shotTimer = 0;
-  private readonly body: Graphics;
+  private readonly body: CharacterVisual;
   private readonly hitMark: Graphics;
 
   constructor() {
@@ -35,6 +35,7 @@ export class Player implements Actor {
       (input.isDown("arrowright", "d") ? 1 : 0) - (input.isDown("arrowleft", "a") ? 1 : 0),
       (input.isDown("arrowdown", "s") ? 1 : 0) - (input.isDown("arrowup", "w") ? 1 : 0)
     );
+    const animationState = direction.x < -0.1 ? "left" : direction.x > 0.1 ? "right" : "idle";
     const focus = input.isDown("shift");
     const speed = focus ? 190 : 330;
 
@@ -45,6 +46,7 @@ export class Player implements Actor {
     this.invincible = Math.max(0, this.invincible - dt);
     this.container.alpha = this.invincible > 0 && Math.floor(this.invincible * 16) % 2 === 0 ? 0.42 : 1;
     this.hitMark.visible = focus;
+    this.body.update(dt, animationState);
 
     this.shotTimer -= dt;
     if (this.shotTimer <= 0 && input.isDown("z", " ")) {
@@ -75,6 +77,7 @@ export class Player implements Actor {
     }
     this.hp -= 1;
     this.invincible = 2.2;
+    this.body.playHit(0.42);
     if (this.hp <= 0) {
       this.alive = false;
       this.container.visible = false;
@@ -90,5 +93,6 @@ export class Player implements Actor {
     this.pos.y = 820;
     this.container.visible = true;
     this.container.position.set(this.pos.x, this.pos.y);
+    this.body.reset("idle");
   }
 }
