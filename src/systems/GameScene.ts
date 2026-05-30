@@ -1,5 +1,6 @@
 import { Application, Assets, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
 import { AudioSystem } from "./AudioSystem";
+import { Asteroid } from "./Asteroid";
 import { Boss } from "./Boss";
 import { BulletSystem } from "./BulletSystem";
 import { circlesOverlap, distanceToSegment } from "./Collision";
@@ -16,6 +17,7 @@ const LEGACY_HIGH_SCORE_KEY = "moonlit-spell-barrage.highScore";
 const TITLE_IMAGE_URL = new URL("../assets/images/title.png", import.meta.url).href;
 const AUTO_COLLECT_LINE_Y = 340;
 const ITEM_COLLECT_RADIUS = 40;
+const ASTEROID_HIT_RADIUS_SCALE = 0.52;
 const FIRST_EXTEND_SCORE = 10000;
 const EXTEND_SCORE_STEP = 20000;
 const DEV_BOSS_START_ENABLED = import.meta.env.DEV;
@@ -37,6 +39,7 @@ export class GameScene {
   private readonly bullets = new BulletSystem();
   private readonly items = new ItemSystem();
   private readonly enemies: Enemy[] = [];
+  private readonly asteroids: Asteroid[] = [];
   private readonly player = new Player();
   private readonly ui = new Container();
   private readonly overlay = new Text({
@@ -83,6 +86,7 @@ export class GameScene {
   private state: GameState = "boot";
   private time = 0;
   private spawnIndex = 0;
+  private asteroidIndex = 0;
   private boss: Boss | null = null;
   private score = 0;
   private highScores: HighScores = { casual: 0, normal: 0, lunatic: 0 };
@@ -97,6 +101,7 @@ export class GameScene {
   private shakeTime = 0;
   private shakeStrength = 0;
   private clearFxTimer = 0;
+  private bossAsteroidTimer = 0;
   private clearWasRecord = false;
   private announcedBoss = false;
   private playedClear = false;
@@ -175,6 +180,8 @@ export class GameScene {
       this.start({ bossDebug: true });
     } else if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("v")) {
       this.start({ stageDebug: 2 });
+    } else if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("c")) {
+      this.start({ stageDebug: 3 });
     } else if (this.state === "title" && this.input.wasPressed("z", " ", "enter")) {
       this.start();
     } else if (this.state === "paused" && this.input.wasPressed("r")) {
@@ -183,6 +190,8 @@ export class GameScene {
       this.showTitle();
     } else if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("n")) {
       this.start({ stageDebug: 2, bossDebug: true });
+    } else if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("g")) {
+      this.start({ stageDebug: 3, bossDebug: true });
     } else if (
       (this.state === "gameover" || (this.state === "clear" && this.clearInputTimer <= 0)) &&
       this.input.wasPressed("r")
@@ -238,6 +247,7 @@ export class GameScene {
       this.useBomb();
     }
     this.spawnEnemies();
+    this.spawnAsteroids();
 
     for (const enemy of this.enemies) {
       if (!enemy.alive) {
@@ -250,6 +260,10 @@ export class GameScene {
       enemy.container.scale.set(1 + Math.max(0, enemy.container.scale.x - 1 - dt * 5));
     }
 
+    for (const asteroid of this.asteroids) {
+      asteroid.update(dt);
+    }
+
     if (!this.boss && this.time >= this.currentStage.bossStartTime) {
       this.boss = new Boss(this.difficulty, this.currentStage.bossKind);
       this.bossPhase = this.boss.getPhase();
@@ -258,6 +272,7 @@ export class GameScene {
       this.audio.bossAppear();
     }
     this.boss?.update(dt, this.bullets, this.player.pos);
+    this.updateBossAsteroidWaves(dt);
     if (this.boss?.alive) {
       if (this.boss.phaseChanged && this.boss.getPhase() !== this.bossPhase) {
         this.bossPhase = this.boss.getPhase();
@@ -278,6 +293,7 @@ export class GameScene {
     );
     this.resolveCollisions();
     this.cleanupEnemies();
+    this.cleanupAsteroids();
     this.drawBossBar();
     this.drawStageProgress();
     this.updateHud();
@@ -317,6 +333,7 @@ export class GameScene {
     this.overlay.position.set(360, 460);
     this.time = bossDebug ? this.currentStage.bossStartTime : 0;
     this.spawnIndex = bossDebug ? this.currentStage.spawns.length : 0;
+    this.asteroidIndex = bossDebug ? (this.currentStage.obstacles?.length ?? 0) : 0;
     this.score = 0;
     this.graze = 0;
     this.power = bossDebug || this.currentStageIndex > 0 ? MAX_POWER : 0;
@@ -325,6 +342,7 @@ export class GameScene {
     this.clearTimer = 0;
     this.clearInputTimer = 0;
     this.stageClearTimer = 0;
+    this.bossAsteroidTimer = 0;
     this.flashTimer = 0;
     this.bannerTimer = 0;
     this.announcedBoss = bossDebug;
@@ -344,6 +362,10 @@ export class GameScene {
       enemy.destroy();
     }
     this.enemies.length = 0;
+    for (const asteroid of this.asteroids) {
+      asteroid.destroy();
+    }
+    this.asteroids.length = 0;
 
     this.player.reset();
     if (!this.playfield.children.includes(this.player.container)) {
@@ -368,13 +390,17 @@ export class GameScene {
       enemy.destroy();
     }
     this.enemies.length = 0;
+    for (const asteroid of this.asteroids) {
+      asteroid.destroy();
+    }
+    this.asteroids.length = 0;
     this.boss?.container.destroy();
     this.boss = null;
     this.player.reset();
     this.hideClearResult();
     this.overlay.position.set(360, 560);
     this.overlay.text = `Difficulty: ${this.difficulty.label}\n\nLeft/Right or 1-3 to change\nZ / SPACE to start${
-      DEV_BOSS_START_ENABLED ? "\nB: Stage 1 boss   V: Stage 2   N: Stage 2 boss" : ""
+      DEV_BOSS_START_ENABLED ? "\nB: Stage 1 boss   V/C: Stage 2/3   N/G: Stage 2/3 boss" : ""
     }`;
     this.hud.text = `Move: Arrow/WASD/Pad   Shot: Z/A   Bomb: X/X\nFocus: Shift/RB   M: ${
       this.audio.isMuted() ? "Sound Off" : "Sound On"
@@ -411,9 +437,78 @@ export class GameScene {
     }
   }
 
+  private spawnAsteroids() {
+    const obstacles = this.currentStage.obstacles ?? [];
+    while (this.asteroidIndex < obstacles.length && obstacles[this.asteroidIndex].time <= this.time) {
+      this.addAsteroid(new Asteroid(obstacles[this.asteroidIndex]));
+      this.asteroidIndex += 1;
+    }
+  }
+
+  private updateBossAsteroidWaves(dt: number) {
+    if (this.currentStage.bossKind !== "cosmicSorcerer" || !this.boss?.alive || !this.boss.entered) {
+      this.bossAsteroidTimer = 0;
+      return;
+    }
+
+    this.bossAsteroidTimer -= dt;
+    if (this.bossAsteroidTimer > 0) {
+      return;
+    }
+
+    const phase = this.boss.getPhase();
+    const count = phase >= 4 ? 5 : phase >= 2 ? 4 : phase === 1 ? 3 : 2;
+    for (let i = 0; i < count; i += 1) {
+      const spread = i / (count - 1) - 0.5;
+      const side = i % 2 === 0 ? 1 : -1;
+      const gateBias = phase === 2 ? Math.sign(spread || 1) * 58 : 0;
+      const rainBias = phase >= 3 ? Math.sin(this.time * 2.4 + i) * 62 : 0;
+      this.addAsteroid(
+        new Asteroid({
+          time: this.time,
+          x: 360 + spread * (phase === 2 ? 520 : 420) + gateBias + rainBias,
+          y: -90 - i * 18,
+          vx: phase === 2 ? -spread * 72 : side * (22 + phase * 8) - spread * 34,
+          vy: 132 + phase * 20 + i * 7,
+          radius: phase === 0 ? 20 + (i % 2) * 4 : 22 + ((phase + i) % 3) * 4,
+          variant: (phase + i) % 4,
+          spin: (side * (0.42 + phase * 0.08)) / this.difficulty.fireDelay
+        })
+      );
+    }
+
+    this.bossAsteroidTimer = Math.max(0.48, [1.25, 1.0, 0.82, 0.68, 0.56][phase] ?? 0.7) * this.difficulty.fireDelay;
+  }
+
+  private addAsteroid(asteroid: Asteroid) {
+    this.asteroids.push(asteroid);
+    this.playfield.addChild(asteroid.container);
+  }
+
   private resolveCollisions() {
     for (const bullet of this.bullets.bullets) {
       if (bullet.owner === "player") {
+        for (const enemyBullet of this.bullets.bullets) {
+          if (
+            enemyBullet.owner === "enemy" &&
+            enemyBullet.hp !== undefined &&
+            enemyBullet.alive &&
+            bullet.alive &&
+            circlesOverlap(bullet.pos, bullet.radius, enemyBullet.pos, enemyBullet.radius)
+          ) {
+            this.bullets.kill(bullet);
+            if (this.bullets.damage(enemyBullet, bullet.damage)) {
+              this.addScore(35);
+              this.spark(enemyBullet.pos.x, enemyBullet.pos.y, 0x9ffff4, 10);
+            }
+            break;
+          }
+        }
+
+        if (!bullet.alive) {
+          continue;
+        }
+
         for (const enemy of this.enemies) {
           if (enemy.alive && circlesOverlap(bullet.pos, bullet.radius, enemy.pos, enemy.radius)) {
             this.bullets.kill(bullet);
@@ -500,12 +595,37 @@ export class GameScene {
         this.floatText("+GRAZE", this.player.pos.x + 24, this.player.pos.y - 18, 0xaefdf2);
       }
     }
+
+    for (const asteroid of this.asteroids) {
+      if (
+        asteroid.alive &&
+        this.player.alive &&
+        this.player.invincible <= 0 &&
+        circlesOverlap(asteroid.pos, asteroid.radius * ASTEROID_HIT_RADIUS_SCALE, this.player.pos, 0)
+      ) {
+        if (this.player.damage()) {
+          this.power = Math.max(0, this.power - POWER_STEP);
+          this.audio.playerHit();
+          this.bullets.clear("enemy");
+          this.shake(0.34, 8);
+          this.spark(this.player.pos.x, this.player.pos.y, 0x9effff, 24);
+        }
+      }
+    }
   }
 
   private cleanupEnemies() {
     for (let i = this.enemies.length - 1; i >= 0; i -= 1) {
       if (!this.enemies[i].alive) {
         this.enemies.splice(i, 1);
+      }
+    }
+  }
+
+  private cleanupAsteroids() {
+    for (let i = this.asteroids.length - 1; i >= 0; i -= 1) {
+      if (!this.asteroids[i].alive) {
+        this.asteroids.splice(i, 1);
       }
     }
   }
@@ -673,6 +793,10 @@ export class GameScene {
       enemy.destroy();
     }
     this.enemies.length = 0;
+    for (const asteroid of this.asteroids) {
+      asteroid.destroy();
+    }
+    this.asteroids.length = 0;
     this.overlay.text = "";
     this.banner.text = "";
     this.clearFx.visible = true;
@@ -702,6 +826,8 @@ export class GameScene {
     this.stageTransitionTimer = 2.2;
     this.time = 0;
     this.spawnIndex = 0;
+    this.asteroidIndex = 0;
+    this.bossAsteroidTimer = 0;
     this.clearTimer = 0;
     this.announcedBoss = false;
     this.bossPhase = 0;
@@ -716,6 +842,10 @@ export class GameScene {
       enemy.destroy();
     }
     this.enemies.length = 0;
+    for (const asteroid of this.asteroids) {
+      asteroid.destroy();
+    }
+    this.asteroids.length = 0;
     this.player.prepareForNextStage();
     this.updateHud();
   }

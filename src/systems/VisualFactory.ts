@@ -18,11 +18,26 @@ const characterSheets = {
     displaySize: 128,
     url: new URL("../assets/characters/boss-starlight-oracle-sheet.png", import.meta.url).href
   },
+  bossCosmicSorcerer: {
+    cellSize: 256,
+    displaySize: 128,
+    url: new URL("../assets/characters/boss-cosmic-sorcerer-sheet.png", import.meta.url).href
+  },
   enemy: { cellSize: 96, displaySize: 48, url: new URL("../assets/characters/enemy-moth-sheet.png", import.meta.url).href },
   enemyCrystal: {
     cellSize: 96,
     displaySize: 48,
     url: new URL("../assets/characters/enemy-crystal-sheet.png", import.meta.url).href
+  },
+  enemyAstralFamiliar: {
+    cellSize: 96,
+    displaySize: 48,
+    url: new URL("../assets/characters/enemy-astral-familiar-sheet.png", import.meta.url).href
+  },
+  asteroid: {
+    cellSize: 128,
+    displaySize: 76,
+    url: new URL("../assets/characters/asteroid-sheet.png", import.meta.url).href
   },
   player: { cellSize: 128, displaySize: 64, url: new URL("../assets/characters/player-sheet.png", import.meta.url).href }
 } satisfies Record<string, CharacterSheetConfig>;
@@ -98,19 +113,21 @@ export class CharacterVisual extends Container {
 export const createPlayerVisual = () => createCharacterVisual("player");
 
 export const createEnemyVisual = (kind: StageEnemyKind = "moth") =>
-  createCharacterVisual(kind === "crystal" ? "enemyCrystal" : "enemy");
+  createCharacterVisual(kind === "crystal" ? "enemyCrystal" : kind === "astralFamiliar" ? "enemyAstralFamiliar" : "enemy");
 
 export const createBossVisual = (kind: BossKind = "lunarWitch") => {
   const container = new Container();
-  const character = createCharacterVisual(kind === "starlightOracle" ? "bossStarlightOracle" : "boss");
+  const character = createCharacterVisual(
+    kind === "cosmicSorcerer" ? "bossCosmicSorcerer" : kind === "starlightOracle" ? "bossStarlightOracle" : "boss"
+  );
   character.name = "character";
 
   const aura = new Graphics();
-  aura.circle(0, 0, 64).stroke({ color: kind === "starlightOracle" ? 0xfff4a8 : 0xffd7fb, width: 2, alpha: 0.38 });
-  aura.circle(0, 0, 48).stroke({ color: 0x92fff1, width: 2, alpha: 0.32 });
+  aura.circle(0, 0, 64).stroke({ color: kind === "lunarWitch" ? 0xffd7fb : 0xfff4a8, width: 2, alpha: 0.38 });
+  aura.circle(0, 0, 48).stroke({ color: kind === "cosmicSorcerer" ? 0x74c9ff : 0x92fff1, width: 2, alpha: 0.32 });
 
   const label = new Text({
-    text: kind === "starlightOracle" ? "STARLIGHT ORACLE" : "LUNAR WITCH",
+    text: kind === "cosmicSorcerer" ? "COSMIC SORCERER" : kind === "starlightOracle" ? "STARLIGHT ORACLE" : "LUNAR WITCH",
     style: { fill: 0xffe5f6, fontSize: 13, letterSpacing: 0 }
   });
   label.anchor.set(0.5);
@@ -118,6 +135,22 @@ export const createBossVisual = (kind: BossKind = "lunarWitch") => {
 
   container.addChild(aura, character, label);
   return { container, character };
+};
+
+export const createAsteroidVisual = (variant: number) => {
+  const frames = loadedFrames.get("asteroid");
+  if (!frames) {
+    throw new Error("Character assets must be loaded before creating asteroid visual.");
+  }
+
+  const row = stateRows[Math.max(0, Math.min(stateRows.length - 1, variant % stateRows.length))];
+  const sprite = new AnimatedSprite(frames[row]);
+  sprite.anchor.set(0.5);
+  sprite.animationSpeed = 0.08;
+  sprite.width = characterSheets.asteroid.displaySize;
+  sprite.height = characterSheets.asteroid.displaySize;
+  sprite.play();
+  return sprite;
 };
 
 const createCharacterVisual = (key: keyof typeof characterSheets) => {
@@ -172,6 +205,35 @@ export const createBulletVisual = (owner: BulletOwner, kind: BulletKind, radius:
       points.push(Math.cos(a) * r, Math.sin(a) * r);
     }
     g.poly(points).fill(0xff8acb).stroke({ color: 0xfff0fb, width: 2, alpha: 0.9 });
+  } else if (kind === "splitter") {
+    g.circle(0, 0, radius * 0.95).fill(0x74c9ff);
+    g.circle(0, 0, radius * 0.48).fill(0xffffff);
+    g.poly([
+      0,
+      -radius * 1.45,
+      radius * 0.44,
+      -radius * 0.44,
+      radius * 1.45,
+      0,
+      radius * 0.44,
+      radius * 0.44,
+      0,
+      radius * 1.45,
+      -radius * 0.44,
+      radius * 0.44,
+      -radius * 1.45,
+      0,
+      -radius * 0.44,
+      -radius * 0.44
+    ]);
+    g.stroke({ color: 0xfff4a8, width: 2, alpha: 0.82 });
+    g.circle(0, 0, radius * 1.85).stroke({ color: 0x9ffff4, width: 1, alpha: 0.42 });
+  } else if (kind === "shell") {
+    g.circle(0, 0, radius * 1.05).fill(0x38445f);
+    g.circle(-radius * 0.24, -radius * 0.3, radius * 0.36).fill({ color: 0x92fff1, alpha: 0.78 });
+    g.moveTo(-radius * 0.8, radius * 0.1).lineTo(radius * 0.8, -radius * 0.25).stroke({ color: 0x67dfff, width: 3, alpha: 0.9 });
+    g.circle(0, 0, radius * 1.18).stroke({ color: 0xfff4a8, width: 2, alpha: 0.8 });
+    g.circle(0, 0, radius * 1.58).stroke({ color: 0x74c9ff, width: 1, alpha: 0.34 });
   } else if (kind === "petal") {
     g.ellipse(0, 0, radius * 0.68, radius * 1.35).fill(0xff88c8);
     g.ellipse(0, 0, radius * 0.38, radius * 1.04).fill({ color: 0xffffff, alpha: 0.45 });

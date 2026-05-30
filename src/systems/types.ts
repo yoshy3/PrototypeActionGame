@@ -5,7 +5,7 @@ export type Vector = {
   y: number;
 };
 
-export type BulletKind = "star" | "petal" | "orb";
+export type BulletKind = "star" | "petal" | "orb" | "splitter" | "shell";
 
 export type BulletOwner = "player" | "enemy";
 
@@ -23,6 +23,11 @@ export type Bullet = {
   age: number;
   spin: number;
   grazed: boolean;
+  hp?: number;
+  splitAt?: number;
+  splitCount?: number;
+  splitSpeed?: number;
+  splitKind?: BulletKind;
   alive: boolean;
 };
 
@@ -57,9 +62,9 @@ export type CollectibleItem = {
   alive: boolean;
 };
 
-export type StageEnemyKind = "moth" | "crystal";
+export type StageEnemyKind = "moth" | "crystal" | "astralFamiliar";
 
-export type BossKind = "lunarWitch" | "starlightOracle";
+export type BossKind = "lunarWitch" | "starlightOracle" | "cosmicSorcerer";
 
 export type StageEnemyPattern =
   | "drift"
@@ -69,7 +74,9 @@ export type StageEnemyPattern =
   | "wheel"
   | "laserSlash"
   | "laserGate"
-  | "laserSnipe";
+  | "laserSnipe"
+  | "splitFan"
+  | "breakableWall";
 
 export type StageEnemyMove = "sway" | "dive" | "arc";
 
@@ -84,6 +91,17 @@ export type EnemySpawn = {
   mirror?: boolean;
 };
 
+export type AsteroidSpawn = {
+  time: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  radius: number;
+  variant: number;
+  spin: number;
+};
+
 export type StageDefinition = {
   id: number;
   title: string;
@@ -91,6 +109,7 @@ export type StageDefinition = {
   warningText: string;
   bossKind: BossKind;
   spawns: EnemySpawn[];
+  obstacles?: AsteroidSpawn[];
   bossStartTime: number;
 };
 

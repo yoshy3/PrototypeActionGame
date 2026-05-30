@@ -26,7 +26,7 @@ export class Boss implements Actor {
     private readonly difficulty: DifficultyConfig,
     private readonly kind: BossKind = "lunarWitch"
   ) {
-    this.maxHp = Math.ceil((kind === "starlightOracle" ? 4200 : 3120) * difficulty.bossHp);
+    this.maxHp = Math.ceil((kind === "cosmicSorcerer" ? 2550 : kind === "starlightOracle" ? 4200 : 3120) * difficulty.bossHp);
     this.hp = this.maxHp;
     const visual = createBossVisual(kind);
     this.body = visual.character;
@@ -89,6 +89,16 @@ export class Boss implements Actor {
       ][this.phase];
     }
 
+    if (this.kind === "cosmicSorcerer") {
+      return [
+        "Asteroid Sigil",
+        "Comet Thread Spiral",
+        "Celestial Ring Gate",
+        "Meteor Grimoire",
+        "Cosmic Belt Finale"
+      ][this.phase];
+    }
+
     return [
       "Moonlit Petal Ring",
       "Starfall Spiral",
@@ -138,6 +148,11 @@ export class Boss implements Actor {
   }
 
   private fireSpell(bullets: BulletSystem) {
+    if (this.kind === "cosmicSorcerer") {
+      this.fireCosmicSpell(bullets);
+      return;
+    }
+
     if (this.kind === "starlightOracle") {
       this.fireStarlightSpell(bullets);
       return;
@@ -191,6 +206,112 @@ export class Boss implements Actor {
       this.fireFinale(bullets);
       this.fireBossLaserFan(bullets, 4, 720, 8);
       this.fireTimer = 0.3 * this.difficulty.fireDelay;
+    }
+  }
+
+  private fireCosmicSpell(bullets: BulletSystem) {
+    if (this.phase === 0) {
+      this.fireSplitSigil(bullets, 5, 0.82);
+      this.fireTimer = 0.5 * this.difficulty.fireDelay;
+    } else if (this.phase === 1) {
+      this.fireSplitSpiral(bullets, 4, 0.66);
+      this.fireTimer = 0.18 * this.difficulty.fireDelay;
+    } else if (this.phase === 2) {
+      this.fireBreakableRing(bullets, 10);
+      this.fireTimer = 0.44 * this.difficulty.fireDelay;
+    } else if (this.phase === 3) {
+      this.fireBreakableComets(bullets, 12);
+      this.fireNormalStarFan(bullets, 9);
+      this.fireTimer = 0.34 * this.difficulty.fireDelay;
+    } else {
+      if (Math.floor(this.age * 4) % 2 === 0) {
+        this.fireSplitSpiral(bullets, 6, 0.5);
+      } else {
+        this.fireBreakableComets(bullets, 14);
+        this.fireNormalStarFan(bullets, 7);
+      }
+      this.fireTimer = 0.28 * this.difficulty.fireDelay;
+    }
+  }
+
+  private fireSplitSigil(bullets: BulletSystem, count: number, splitAt: number) {
+    const base = this.age * 0.95;
+    for (let i = 0; i < count; i += 1) {
+      const angle = base + (Math.PI * 2 * i) / count;
+      bullets.spawn(
+        "enemy",
+        "splitter",
+        { x: this.pos.x + Math.cos(angle) * 34, y: this.pos.y + 18 + Math.sin(angle) * 18 },
+        polar(angle + 0.42, 118 * this.difficulty.bulletSpeed),
+        12,
+        1,
+        { splitAt, splitCount: 9, splitSpeed: 152 * this.difficulty.bulletSpeed, splitKind: i % 2 === 0 ? "star" : "petal" }
+      );
+    }
+  }
+
+  private fireSplitSpiral(bullets: BulletSystem, arms: number, splitAt: number) {
+    for (let arm = 0; arm < arms; arm += 1) {
+      const angle = this.age * 2.1 + (Math.PI * 2 * arm) / arms;
+      bullets.spawn(
+        "enemy",
+        "splitter",
+        { x: this.pos.x + Math.cos(angle) * 28, y: this.pos.y + 20 + Math.sin(angle) * 16 },
+        polar(angle + Math.PI / 2, 132 * this.difficulty.bulletSpeed),
+        11,
+        1,
+        { splitAt, splitCount: 6, splitSpeed: 170 * this.difficulty.bulletSpeed, splitKind: arm % 2 === 0 ? "petal" : "star" }
+      );
+    }
+  }
+
+  private fireBreakableRing(bullets: BulletSystem, count: number) {
+    const wobble = Math.sin(this.age * 1.7) * 0.18;
+    for (let i = 0; i < count; i += 1) {
+      const angle = Math.PI * 0.18 + wobble + (Math.PI * 0.64 * i) / (count - 1);
+      bullets.spawn(
+        "enemy",
+        "shell",
+        { x: this.pos.x + Math.cos(angle) * 66, y: this.pos.y + 34 + Math.sin(angle) * 28 },
+        polar(angle, 112 * this.difficulty.bulletSpeed),
+        15,
+        1,
+        { hp: 24 }
+      );
+    }
+  }
+
+  private fireBreakableComets(bullets: BulletSystem, count: number) {
+    const center = this.angleToTarget({ x: this.pos.x, y: this.pos.y + 20 });
+    const spread = 1.02;
+    for (let i = 0; i < count; i += 1) {
+      const t = count === 1 ? 0 : i / (count - 1) - 0.5;
+      const angle = center + t * spread + Math.sin(this.age + i) * 0.08;
+      bullets.spawn(
+        "enemy",
+        "shell",
+        { x: this.pos.x + t * 126, y: this.pos.y + 24 + Math.abs(t) * 28 },
+        polar(angle, 126 * this.difficulty.bulletSpeed),
+        15,
+        1,
+        { hp: 24 }
+      );
+    }
+  }
+
+  private fireNormalStarFan(bullets: BulletSystem, count: number) {
+    const center = this.angleToTarget({ x: this.pos.x, y: this.pos.y + 24 });
+    const spread = 0.92;
+    for (let i = 0; i < count; i += 1) {
+      const t = count === 1 ? 0 : i / (count - 1) - 0.5;
+      bullets.spawn(
+        "enemy",
+        i % 2 === 0 ? "star" : "orb",
+        { x: this.pos.x + t * 104, y: this.pos.y + 28 },
+        polar(center + t * spread, (170 + Math.abs(t) * 34) * this.difficulty.bulletSpeed),
+        i % 2 === 0 ? 7 : 8,
+        1
+      );
     }
   }
 
@@ -294,6 +415,22 @@ export class Boss implements Actor {
   }
 
   private resolvePhase() {
+    if (this.kind === "cosmicSorcerer") {
+      if (this.hp < this.maxHp * 0.133) {
+        return 4;
+      }
+      if (this.hp < this.maxHp * 0.266) {
+        return 3;
+      }
+      if (this.hp < this.maxHp * 0.4) {
+        return 2;
+      }
+      if (this.hp < this.maxHp * 0.7) {
+        return 1;
+      }
+      return 0;
+    }
+
     if (this.hp < this.maxHp * 0.2) {
       return 4;
     }

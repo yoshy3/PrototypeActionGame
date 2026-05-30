@@ -2,13 +2,21 @@ import { Container } from "pixi.js";
 import type { Bullet, BulletKind, BulletOwner, Laser, Vector } from "./types";
 import { createBulletVisual, createLaserVisual, drawLaserVisual } from "./VisualFactory";
 
+type BulletSpawnOptions = {
+  hp?: number;
+  splitAt?: number;
+  splitCount?: number;
+  splitSpeed?: number;
+  splitKind?: BulletKind;
+};
+
 export class BulletSystem {
   readonly container = new Container();
   readonly bullets: Bullet[] = [];
   readonly lasers: Laser[] = [];
   private nextId = 1;
 
-  spawn(owner: BulletOwner, kind: BulletKind, pos: Vector, vel: Vector, radius: number, damage: number) {
+  spawn(owner: BulletOwner, kind: BulletKind, pos: Vector, vel: Vector, radius: number, damage: number, options: BulletSpawnOptions = {}) {
     const sprite = createBulletVisual(owner, kind, radius);
     sprite.position.set(pos.x, pos.y);
     this.container.addChild(sprite);
@@ -25,6 +33,11 @@ export class BulletSystem {
       age: 0,
       spin: owner === "player" ? 0 : (Math.random() - 0.5) * 4,
       grazed: false,
+      hp: options.hp,
+      splitAt: options.splitAt,
+      splitCount: options.splitCount,
+      splitSpeed: options.splitSpeed,
+      splitKind: options.splitKind,
       alive: true
     });
   }
@@ -74,10 +87,15 @@ export class BulletSystem {
       }
 
       bullet.age += dt;
+      if (bullet.splitAt !== undefined && bullet.age >= bullet.splitAt) {
+        this.split(bullet);
+        continue;
+      }
       bullet.pos.x += bullet.vel.x * dt;
       bullet.pos.y += bullet.vel.y * dt;
       bullet.sprite.position.set(bullet.pos.x, bullet.pos.y);
       bullet.sprite.rotation += bullet.spin * dt;
+      bullet.sprite.scale.set(1 + Math.max(0, bullet.sprite.scale.x - 1 - dt * 5));
 
       if (
         bullet.pos.x < -80 ||
@@ -132,6 +150,20 @@ export class BulletSystem {
     bullet.sprite.destroy();
   }
 
+  damage(bullet: Bullet, amount: number) {
+    if (!bullet.alive || bullet.hp === undefined) {
+      return false;
+    }
+
+    bullet.hp -= amount;
+    bullet.sprite.scale.set(1.16);
+    if (bullet.hp <= 0) {
+      this.kill(bullet);
+      return true;
+    }
+    return false;
+  }
+
   killLaser(laser: Laser) {
     if (!laser.alive) {
       return;
@@ -164,6 +196,28 @@ export class BulletSystem {
       if (!this.lasers[index].alive) {
         this.lasers.splice(index, 1);
       }
+    }
+  }
+
+  private split(bullet: Bullet) {
+    const count = bullet.splitCount ?? 6;
+    const speed = bullet.splitSpeed ?? 145;
+    const kind = bullet.splitKind ?? "petal";
+    const base = Math.atan2(bullet.vel.y, bullet.vel.x);
+    const spread = Math.PI * 2;
+    const start = base - spread * 0.5;
+
+    this.kill(bullet);
+    for (let i = 0; i < count; i += 1) {
+      const angle = start + (spread * i) / count + bullet.age * 0.25;
+      this.spawn(
+        bullet.owner,
+        kind,
+        bullet.pos,
+        { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed },
+        Math.max(5, bullet.radius * 0.62),
+        bullet.damage
+      );
     }
   }
 

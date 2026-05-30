@@ -1,4 +1,4 @@
-import type { EnemySpawn, StageDefinition } from "./types";
+import type { AsteroidSpawn, EnemySpawn, StageDefinition } from "./types";
 
 const stageOneSpawns: EnemySpawn[] = [
   { time: 1.2, x: 130, y: -40, hp: 18, pattern: "fan" },
@@ -92,7 +92,102 @@ const stageTwoSpawns: EnemySpawn[] = [
   { time: 75.4, x: 360, y: -40, hp: 64, kind: "crystal", pattern: "wheel", move: "arc" }
 ];
 
-const clampSpawnX = (x: number) => Math.max(70, Math.min(650, x));
+const stageThreeSpawns: EnemySpawn[] = [
+  { time: 1.0, x: 120, y: -40, hp: 36, kind: "astralFamiliar", pattern: "splitFan", move: "arc" },
+  { time: 2.0, x: 600, y: -40, hp: 36, kind: "astralFamiliar", pattern: "splitFan", move: "arc", mirror: true },
+  { time: 3.4, x: 250, y: -40, hp: 38, kind: "astralFamiliar", pattern: "snipe", move: "dive" },
+  { time: 4.5, x: 470, y: -40, hp: 38, kind: "astralFamiliar", pattern: "snipe", move: "dive", mirror: true },
+  { time: 6.1, x: 360, y: -40, hp: 54, kind: "astralFamiliar", pattern: "breakableWall", move: "arc" },
+
+  { time: 15.4, x: 90, y: -40, hp: 34, kind: "crystal", pattern: "laserSlash", move: "sway" },
+  { time: 16.3, x: 630, y: -40, hp: 34, kind: "crystal", pattern: "laserSlash", move: "sway", mirror: true },
+  { time: 17.7, x: 200, y: -40, hp: 42, kind: "astralFamiliar", pattern: "breakableWall", move: "arc" },
+  { time: 18.6, x: 520, y: -40, hp: 42, kind: "astralFamiliar", pattern: "breakableWall", move: "arc", mirror: true },
+  { time: 20.0, x: 360, y: -40, hp: 58, kind: "astralFamiliar", pattern: "laserSnipe", move: "dive" },
+
+  { time: 30.0, x: 140, y: -40, hp: 40, kind: "astralFamiliar", pattern: "splitFan", move: "arc" },
+  { time: 31.1, x: 580, y: -40, hp: 40, kind: "astralFamiliar", pattern: "splitFan", move: "arc", mirror: true },
+  { time: 32.4, x: 360, y: -40, hp: 62, kind: "crystal", pattern: "laserGate", move: "sway" },
+  { time: 34.3, x: 230, y: -40, hp: 42, kind: "astralFamiliar", pattern: "snipe", move: "dive" },
+  { time: 35.0, x: 490, y: -40, hp: 42, kind: "astralFamiliar", pattern: "snipe", move: "dive", mirror: true },
+
+  { time: 51.2, x: 100, y: -40, hp: 42, kind: "astralFamiliar", pattern: "splitFan", move: "arc" },
+  { time: 52.0, x: 620, y: -40, hp: 42, kind: "astralFamiliar", pattern: "splitFan", move: "arc", mirror: true },
+  { time: 53.4, x: 250, y: -40, hp: 44, kind: "crystal", pattern: "laserSlash", move: "dive" },
+  { time: 54.2, x: 470, y: -40, hp: 44, kind: "crystal", pattern: "laserSlash", move: "dive", mirror: true },
+  { time: 55.8, x: 360, y: -40, hp: 70, kind: "astralFamiliar", pattern: "breakableWall", move: "arc" },
+
+  { time: 66.0, x: 130, y: -40, hp: 44, kind: "astralFamiliar", pattern: "breakableWall", move: "arc" },
+  { time: 66.9, x: 590, y: -40, hp: 44, kind: "astralFamiliar", pattern: "breakableWall", move: "arc", mirror: true },
+  { time: 68.2, x: 210, y: -40, hp: 46, kind: "astralFamiliar", pattern: "laserSnipe", move: "dive" },
+  { time: 69.1, x: 510, y: -40, hp: 46, kind: "astralFamiliar", pattern: "laserSnipe", move: "dive", mirror: true },
+  { time: 70.5, x: 360, y: -40, hp: 76, kind: "crystal", pattern: "wheel", move: "arc" },
+
+  { time: 78.0, x: 110, y: -40, hp: 46, kind: "astralFamiliar", pattern: "splitFan", move: "dive" },
+  { time: 78.8, x: 610, y: -40, hp: 46, kind: "astralFamiliar", pattern: "splitFan", move: "dive", mirror: true },
+  { time: 80.2, x: 250, y: -40, hp: 50, kind: "crystal", pattern: "laserGate", move: "arc" },
+  { time: 81.1, x: 470, y: -40, hp: 50, kind: "crystal", pattern: "laserGate", move: "arc", mirror: true },
+  { time: 82.8, x: 360, y: -40, hp: 82, kind: "astralFamiliar", pattern: "breakableWall", move: "arc" }
+];
+
+const stageThreeAsteroidSeeds: AsteroidSpawn[] = [
+  { time: 35.0, x: 120, y: -90, vx: 36, vy: 170, radius: 31, variant: 0, spin: 0.55 },
+  { time: 35.8, x: 560, y: -100, vx: -42, vy: 178, radius: 34, variant: 1, spin: -0.5 },
+  { time: 36.8, x: 340, y: -110, vx: 18, vy: 190, radius: 28, variant: 2, spin: 0.75 },
+  { time: 38.0, x: 680, y: -120, vx: -72, vy: 168, radius: 37, variant: 3, spin: -0.42 },
+  { time: 39.0, x: 50, y: -100, vx: 76, vy: 182, radius: 30, variant: 0, spin: 0.62 },
+  { time: 40.2, x: 250, y: -120, vx: 30, vy: 176, radius: 35, variant: 1, spin: -0.7 },
+  { time: 41.2, x: 500, y: -120, vx: -28, vy: 184, radius: 32, variant: 2, spin: 0.58 },
+  { time: 42.4, x: 360, y: -130, vx: 0, vy: 198, radius: 40, variant: 3, spin: -0.36 },
+  { time: 43.8, x: 110, y: -100, vx: 52, vy: 188, radius: 29, variant: 0, spin: 0.68 },
+  { time: 44.5, x: 620, y: -100, vx: -58, vy: 188, radius: 29, variant: 1, spin: -0.66 },
+  { time: 45.8, x: 260, y: -130, vx: -18, vy: 178, radius: 33, variant: 2, spin: 0.48 },
+  { time: 46.7, x: 460, y: -130, vx: 22, vy: 178, radius: 33, variant: 3, spin: -0.52 },
+  { time: 48.0, x: 80, y: -120, vx: 70, vy: 192, radius: 36, variant: 0, spin: 0.44 },
+  { time: 49.0, x: 640, y: -120, vx: -70, vy: 192, radius: 36, variant: 1, spin: -0.44 }
+];
+
+const stageThreeAsteroids: AsteroidSpawn[] = stageThreeAsteroidSeeds
+  .flatMap((spawn, index) => {
+    const offsets = [0, 0.34, 0.68, 1.02];
+    return offsets.map((offset, wave) => {
+      const side = wave % 2 === 0 ? 1 : -1;
+      return {
+        ...spawn,
+        time: spawn.time + offset + (index % 3) * 0.08,
+        x: clampSpawnX(spawn.x + side * (42 + (index % 4) * 14) * wave),
+        vx: spawn.vx + side * (10 + wave * 8),
+        vy: spawn.vy + wave * 9,
+        radius: Math.max(24, spawn.radius - (wave % 2) * 4 + (wave === 3 ? 3 : 0)),
+        variant: (spawn.variant + wave) % 4,
+        spin: spawn.spin * (wave % 2 === 0 ? 1 : -1) + side * wave * 0.08
+      };
+    });
+  })
+  .sort((a, b) => a.time - b.time);
+
+function clampSpawnX(x: number) {
+  return Math.max(70, Math.min(650, x));
+}
+
+const thickenStageSpawns = (spawns: EnemySpawn[]) =>
+  spawns
+    .flatMap((spawn, index) => {
+      if (index % 2 === 1) {
+        return [spawn];
+      }
+
+      const side = spawn.x < 360 ? 1 : -1;
+      const extra: EnemySpawn = {
+        ...spawn,
+        time: spawn.time + 0.36,
+        x: clampSpawnX(720 - spawn.x + side * 36),
+        hp: Math.max(28, Math.floor(spawn.hp * 0.9)),
+        mirror: !spawn.mirror
+      };
+      return [spawn, extra];
+    })
+    .sort((a, b) => a.time - b.time);
 
 const doubleStageSpawns = (spawns: EnemySpawn[]) =>
   spawns
@@ -128,6 +223,16 @@ export const stages: StageDefinition[] = [
     bossKind: "starlightOracle",
     spawns: doubleStageSpawns(stageTwoSpawns),
     bossStartTime: 90.0
+  },
+  {
+    id: 3,
+    title: "Stage 3",
+    subtitle: "Asteroid spell belt",
+    warningText: "Cosmic Sorcerer opens the belt",
+    bossKind: "cosmicSorcerer",
+    spawns: thickenStageSpawns(stageThreeSpawns),
+    obstacles: stageThreeAsteroids,
+    bossStartTime: 92.0
   }
 ];
 

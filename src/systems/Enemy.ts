@@ -123,6 +123,48 @@ export class Enemy implements Actor {
       return;
     }
 
+    if (pattern === "splitFan") {
+      const base = Math.atan2(760 - this.pos.y, playerX - this.pos.x);
+      for (let i = -1; i <= 1; i += 1) {
+        bullets.spawn(
+          "enemy",
+          "splitter",
+          this.pos,
+          polar(base + i * 0.28, 122 * this.difficulty.bulletSpeed),
+          11,
+          1,
+          { splitAt: 0.78, splitCount: 7, splitSpeed: 155 * this.difficulty.bulletSpeed, splitKind: "petal" }
+        );
+      }
+      return;
+    }
+
+    if (pattern === "breakableWall") {
+      const drift = this.spawn.mirror ? -1 : 1;
+      for (let i = -3; i <= 3; i += 1) {
+        bullets.spawn(
+          "enemy",
+          "shell",
+          { x: this.pos.x + i * 18, y: this.pos.y + 8 + Math.abs(i) * 2 },
+          { x: (i * 9 + drift * 22) * this.difficulty.bulletSpeed, y: 122 * this.difficulty.bulletSpeed },
+          14,
+          1,
+          { hp: 16 }
+        );
+      }
+      for (let i = -2; i <= 2; i += 1) {
+        bullets.spawn(
+          "enemy",
+          i % 2 === 0 ? "orb" : "petal",
+          { x: this.pos.x + i * 24, y: this.pos.y + 2 },
+          polar(Math.PI / 2 + i * 0.13 + drift * 0.08, (154 + Math.abs(i) * 12) * this.difficulty.bulletSpeed),
+          i % 2 === 0 ? 8 : 7,
+          1
+        );
+      }
+      return;
+    }
+
     if (pattern === "laserSlash") {
       const angle = Math.atan2(800 - this.pos.y, playerX - this.pos.x);
       bullets.spawnLaser("enemy", { x: this.pos.x, y: this.pos.y + 8 }, angle, 270, 5, 0.72, 0.36, 1, 300 * this.difficulty.bulletSpeed, 0.52);
@@ -173,6 +215,12 @@ export class Enemy implements Actor {
   }
 
   private getFireDelay(pattern: StageEnemyPattern) {
+    if (pattern === "breakableWall") {
+      return 1.08;
+    }
+    if (pattern === "splitFan") {
+      return 1.05;
+    }
     if (pattern === "laserSlash" || pattern === "laserGate" || pattern === "laserSnipe") {
       return 1.18;
     }
