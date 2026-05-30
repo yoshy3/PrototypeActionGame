@@ -38,10 +38,24 @@ export class GameScene {
   private readonly ui = new Container();
   private readonly overlay = new Text({
     text: "",
-    style: { fill: 0xffffff, fontSize: 32, align: "center", fontWeight: "700", letterSpacing: 0 }
+    style: {
+      fill: 0xffffff,
+      fontSize: 32,
+      align: "center",
+      fontWeight: "700",
+      letterSpacing: 0,
+      wordWrap: true,
+      wordWrapWidth: 640
+    }
   });
-  private readonly hud = new Text({ text: "", style: { fill: 0xffedf9, fontSize: 18, letterSpacing: 0 } });
-  private readonly subHud = new Text({ text: "", style: { fill: 0xaefdf2, fontSize: 14, letterSpacing: 0 } });
+  private readonly hud = new Text({
+    text: "",
+    style: { fill: 0xffedf9, fontSize: 16, letterSpacing: 0, wordWrap: true, wordWrapWidth: 676 }
+  });
+  private readonly subHud = new Text({
+    text: "",
+    style: { fill: 0xaefdf2, fontSize: 14, letterSpacing: 0, wordWrap: true, wordWrapWidth: 676 }
+  });
   private readonly banner = new Text({
     text: "",
     style: { fill: 0xffe2f3, fontSize: 28, align: "center", fontWeight: "700", letterSpacing: 0 }
@@ -112,7 +126,7 @@ export class GameScene {
     this.clearFx.visible = false;
     this.clearFx.addChild(this.clearRays, this.clearSparkles, this.clearTitle, this.clearStats, this.clearHint);
     this.hud.position.set(22, 20);
-    this.subHud.position.set(22, 45);
+    this.subHud.position.set(22, 64);
     this.ui.addChild(this.hud, this.subHud, this.bossBar, this.stageProgress, this.clearFx, this.banner, this.overlay);
 
     this.drawBackground();
@@ -120,6 +134,7 @@ export class GameScene {
   }
 
   update(dt: number) {
+    this.input.update();
     this.updateBackground(dt);
     this.updateShake(dt);
     this.updateClearResult(dt);
@@ -137,7 +152,7 @@ export class GameScene {
       this.state = this.state === "playing" ? "paused" : "playing";
       this.audio.setPaused(this.state === "paused");
       this.overlay.position.set(360, 460);
-      this.overlay.text = this.state === "paused" ? "PAUSED\n\nEsc to resume\nR to retry   Z / SPACE to title" : "";
+      this.overlay.text = this.state === "paused" ? "PAUSED\n\nEsc/Start to resume\nR to retry   Z / SPACE to title" : "";
     }
     if (this.input.wasPressed("m")) {
       this.audio.resume();
@@ -319,7 +334,9 @@ export class GameScene {
     this.overlay.text = `Difficulty: ${this.difficulty.label}\n\nLeft/Right or 1-3 to change\nZ / SPACE to start${
       DEV_BOSS_START_ENABLED ? "\nB to start boss debug" : ""
     }`;
-    this.hud.text = `Arrow/WASD: Move   Shift: Focus   Z/Space: Shot   X: Bomb   M: ${this.audio.isMuted() ? "Sound Off" : "Sound On"}   Esc: Pause`;
+    this.hud.text = `Move: Arrow/WASD/Pad   Shot: Z/A   Bomb: X/X\nFocus: Shift/RB   M: ${
+      this.audio.isMuted() ? "Sound Off" : "Sound On"
+    }   Esc/Start: Pause`;
     this.subHud.text = `Graze enemy bullets for bonus score. ${this.difficulty.label} best: ${this.currentHighScore}`;
     this.bossBar.clear();
     this.stageProgress.clear();
@@ -333,7 +350,7 @@ export class GameScene {
     this.playfield.visible = false;
     this.hideClearResult();
     this.overlay.position.set(360, 560);
-    this.overlay.text = "CLICK OR PRESS ANY KEY";
+    this.overlay.text = "CLICK OR PRESS ANY KEY\nGAMEPAD BUTTON";
     this.hud.text = "";
     this.subHud.text = "";
     this.banner.text = "";
@@ -413,13 +430,12 @@ export class GameScene {
   }
 
   private updateHud() {
-    const bossText = this.boss?.alive
-      ? `   ${this.boss.getSpellName()}: ${Math.max(0, Math.ceil(this.boss.hp))}`
-      : "";
-    this.hud.text = `Lives: ${this.player.hp}   Bombs: ${this.bombs}   Power: Lv${this.powerLevel + 1} ${this.power}/${MAX_POWER}   Graze: ${this.graze}   Score: ${this.score}   ${this.audio.isMuted() ? "Muted" : "Sound"}${bossText}`;
+    this.hud.text = `Lives: ${this.player.hp}   Bombs: ${this.bombs}   Power: Lv${this.powerLevel + 1} ${
+      this.power
+    }/${MAX_POWER}   Graze: ${this.graze}\nScore: ${this.score}   ${this.audio.isMuted() ? "Muted" : "Sound"}`;
     this.subHud.text = this.boss?.alive
-      ? "Boss spell active: focus with Shift, graze safely, and counterattack."
-      : `Stage 1: Moonlit shrine approach   Auto-collect above the top line`;
+      ? `${this.boss.getSpellName()}: ${Math.max(0, Math.ceil(this.boss.hp))} HP   Focus with Shift/RB`
+      : "Stage 1: Moonlit shrine approach   Auto-collect above the top line";
   }
 
   private finishRun(title: string) {
@@ -493,7 +509,7 @@ export class GameScene {
 
     const width = 510;
     const x = 105;
-    const y = 58;
+    const y = 88;
     const ratio = Math.max(0, this.boss.hp / this.boss.maxHp);
     this.bossBar.roundRect(x, y, width, 8, 4).fill({ color: 0xffffff, alpha: 0.18 });
     this.bossBar.roundRect(x, y, width * ratio, 8, 4).fill(0xff72bd);
@@ -509,7 +525,7 @@ export class GameScene {
 
     const width = 510;
     const x = 105;
-    const y = 74;
+    const y = 104;
     const ratio = Math.min(1, this.boss?.alive ? 1 : this.time / bossStartTime);
     this.stageProgress.roundRect(x, y, width, 5, 3).fill({ color: 0xffffff, alpha: 0.12 });
     this.stageProgress.roundRect(x, y, width * ratio, 5, 3).fill({ color: 0xaefdf2, alpha: 0.72 });

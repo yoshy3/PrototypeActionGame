@@ -1,15 +1,17 @@
 export class Input {
-  private readonly keys = new Set<string>();
+  private readonly keyboardKeys = new Set<string>();
+  private readonly gamepadKeys = new Set<string>();
   private readonly pressed = new Set<string>();
   private pointerPressed = false;
+  private readonly gamepadAxisThreshold = 0.45;
 
   constructor() {
     window.addEventListener("keydown", (event) => {
       const key = this.normalize(event.key);
-      if (!this.keys.has(key)) {
+      if (!this.isKeyDown(key)) {
         this.pressed.add(key);
       }
-      this.keys.add(key);
+      this.keyboardKeys.add(key);
 
       if (["arrowup", "arrowdown", "arrowleft", "arrowright", " ", "z", "x", "m", "r", "shift"].includes(key)) {
         event.preventDefault();
@@ -17,7 +19,7 @@ export class Input {
     });
 
     window.addEventListener("keyup", (event) => {
-      this.keys.delete(this.normalize(event.key));
+      this.keyboardKeys.delete(this.normalize(event.key));
     });
 
     window.addEventListener("pointerdown", () => {
@@ -25,8 +27,49 @@ export class Input {
     });
   }
 
+  update() {
+    const previousGamepadKeys = new Set(this.gamepadKeys);
+    this.gamepadKeys.clear();
+
+    for (const gamepad of navigator.getGamepads()) {
+      if (!gamepad) {
+        continue;
+      }
+
+      this.addGamepadButton(gamepad, 0, "z");
+      this.addGamepadButton(gamepad, 2, "x");
+      this.addGamepadButton(gamepad, 5, "shift");
+      this.addGamepadButton(gamepad, 9, "escape");
+      this.addGamepadButton(gamepad, 12, "arrowup");
+      this.addGamepadButton(gamepad, 13, "arrowdown");
+      this.addGamepadButton(gamepad, 14, "arrowleft");
+      this.addGamepadButton(gamepad, 15, "arrowright");
+
+      const horizontal = gamepad.axes[0] ?? 0;
+      const vertical = gamepad.axes[1] ?? 0;
+
+      if (horizontal <= -this.gamepadAxisThreshold) {
+        this.gamepadKeys.add("arrowleft");
+      } else if (horizontal >= this.gamepadAxisThreshold) {
+        this.gamepadKeys.add("arrowright");
+      }
+
+      if (vertical <= -this.gamepadAxisThreshold) {
+        this.gamepadKeys.add("arrowup");
+      } else if (vertical >= this.gamepadAxisThreshold) {
+        this.gamepadKeys.add("arrowdown");
+      }
+    }
+
+    for (const key of this.gamepadKeys) {
+      if (!previousGamepadKeys.has(key) && !this.keyboardKeys.has(key)) {
+        this.pressed.add(key);
+      }
+    }
+  }
+
   isDown(...keys: string[]) {
-    return keys.some((key) => this.keys.has(this.normalize(key)));
+    return keys.some((key) => this.isKeyDown(this.normalize(key)));
   }
 
   wasPressed(...keys: string[]) {
@@ -47,5 +90,15 @@ export class Input {
       return " ";
     }
     return key.toLowerCase();
+  }
+
+  private isKeyDown(key: string) {
+    return this.keyboardKeys.has(key) || this.gamepadKeys.has(key);
+  }
+
+  private addGamepadButton(gamepad: Gamepad, buttonIndex: number, key: string) {
+    if (gamepad.buttons[buttonIndex]?.pressed) {
+      this.gamepadKeys.add(key);
+    }
   }
 }
