@@ -13,7 +13,7 @@ export class ItemSystem {
   readonly items: CollectibleItem[] = [];
   private nextId = 1;
 
-  spawn(kind: ItemKind, pos: Vector, burst = 0) {
+  spawn(kind: ItemKind, pos: Vector, burst = 0, autoCollect = false) {
     const sprite = createItemVisual(kind);
     sprite.position.set(pos.x, pos.y);
     this.container.addChild(sprite);
@@ -25,6 +25,7 @@ export class ItemSystem {
       pos: { ...pos },
       vel: { x: (Math.random() - 0.5) * 80 + burst, y: FALL_SPEED },
       radius: kind === "bomb" ? 13 : 11,
+      autoCollect,
       alive: true
     });
   }
@@ -44,7 +45,8 @@ export class ItemSystem {
       const dx = player.x - item.pos.x;
       const dy = player.y - item.pos.y;
       const distance = Math.hypot(dx, dy);
-      if (autoCollect && distance > 0) {
+      const magnetCollect = autoCollect || item.autoCollect;
+      if (magnetCollect && distance > 0) {
         const moveDistance = Math.min(distance, (AUTO_COLLECT_BASE_SPEED + distance * AUTO_COLLECT_DISTANCE_SCALE) * dt);
         item.pos.x += (dx / distance) * moveDistance;
         item.pos.y += (dy / distance) * moveDistance;
@@ -67,7 +69,7 @@ export class ItemSystem {
         item.alive = false;
         item.sprite.destroy();
         onCollect(item);
-      } else if (!autoCollect && (item.pos.y > 1010 || item.pos.x < -60 || item.pos.x > 780)) {
+      } else if (!magnetCollect && (item.pos.y > 1010 || item.pos.x < -60 || item.pos.x > 780)) {
         item.alive = false;
         item.sprite.destroy();
       }

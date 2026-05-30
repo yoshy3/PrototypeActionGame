@@ -15,7 +15,11 @@ const HIGH_SCORE_KEY = "moonlit-spell-barrage.highScores";
 const LEGACY_HIGH_SCORE_KEY = "moonlit-spell-barrage.highScore";
 const AUTO_COLLECT_LINE_Y = 340;
 const ITEM_COLLECT_RADIUS = 40;
+const DEV_BOSS_START_ENABLED = import.meta.env.DEV;
 type HighScores = Record<DifficultyId, number>;
+type StartOptions = {
+  bossDebug?: boolean;
+};
 
 export class GameScene {
   private readonly audio = new AudioSystem();
@@ -40,6 +44,21 @@ export class GameScene {
     text: "",
     style: { fill: 0xffe2f3, fontSize: 28, align: "center", fontWeight: "700", letterSpacing: 0 }
   });
+  private readonly clearFx = new Container();
+  private readonly clearRays = new Graphics();
+  private readonly clearSparkles = new Graphics();
+  private readonly clearTitle = new Text({
+    text: "",
+    style: { fill: 0xffffff, fontSize: 48, align: "center", fontWeight: "700", letterSpacing: 0 }
+  });
+  private readonly clearStats = new Text({
+    text: "",
+    style: { fill: 0xffedf9, fontSize: 22, align: "center", fontWeight: "700", letterSpacing: 0 }
+  });
+  private readonly clearHint = new Text({
+    text: "",
+    style: { fill: 0xaefdf2, fontSize: 18, align: "center", fontWeight: "700", letterSpacing: 0 }
+  });
   private readonly bossBar = new Graphics();
   private readonly stageProgress = new Graphics();
   private state: GameState = "title";
@@ -57,6 +76,8 @@ export class GameScene {
   private bannerTimer = 0;
   private shakeTime = 0;
   private shakeStrength = 0;
+  private clearFxTimer = 0;
+  private clearWasRecord = false;
   private announcedBoss = false;
   private playedClear = false;
   private bossPhase = 0;
@@ -74,9 +95,17 @@ export class GameScene {
     this.overlay.position.set(360, 460);
     this.banner.anchor.set(0.5);
     this.banner.position.set(360, 250);
+    this.clearTitle.anchor.set(0.5);
+    this.clearTitle.position.set(360, 350);
+    this.clearStats.anchor.set(0.5);
+    this.clearStats.position.set(360, 465);
+    this.clearHint.anchor.set(0.5);
+    this.clearHint.position.set(360, 590);
+    this.clearFx.visible = false;
+    this.clearFx.addChild(this.clearRays, this.clearSparkles, this.clearTitle, this.clearStats, this.clearHint);
     this.hud.position.set(22, 20);
     this.subHud.position.set(22, 45);
-    this.ui.addChild(this.hud, this.subHud, this.bossBar, this.stageProgress, this.banner, this.overlay);
+    this.ui.addChild(this.hud, this.subHud, this.bossBar, this.stageProgress, this.clearFx, this.banner, this.overlay);
 
     this.drawBackground();
     this.showTitle();
@@ -85,6 +114,7 @@ export class GameScene {
   update(dt: number) {
     this.updateBackground(dt);
     this.updateShake(dt);
+    this.updateClearResult(dt);
 
     if (this.input.wasPressed("escape") && (this.state === "playing" || this.state === "paused")) {
       this.state = this.state === "playing" ? "paused" : "playing";
@@ -99,7 +129,9 @@ export class GameScene {
       }
     }
 
-    if (this.state === "title" && this.input.wasPressed("z", " ", "enter")) {
+    if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("b")) {
+      this.start({ bossDebug: true });
+    } else if (this.state === "title" && this.input.wasPressed("z", " ", "enter")) {
       this.start();
     } else if (this.state === "paused" && this.input.wasPressed("r")) {
       this.start();
@@ -113,6 +145,12 @@ export class GameScene {
 
     if (this.state === "title") {
       this.updateTitleSelection();
+    }
+
+    if (this.state === "clear") {
+      this.updateClearState(dt);
+      this.input.endFrame();
+      return;
     }
 
     if (this.state !== "playing") {
@@ -190,23 +228,26 @@ export class GameScene {
     this.input.endFrame();
   }
 
-  private start() {
+  private start(options: StartOptions = {}) {
+    const bossDebug = DEV_BOSS_START_ENABLED && options.bossDebug === true;
     this.audio.resume();
     this.state = "playing";
-    this.time = 0;
-    this.spawnIndex = 0;
+    this.time = bossDebug ? bossStartTime : 0;
+    this.spawnIndex = bossDebug ? stageSpawns.length : 0;
     this.score = 0;
     this.graze = 0;
-    this.power = 0;
+    this.power = bossDebug ? MAX_POWER : 0;
     this.bombs = 2;
     this.clearTimer = 0;
     this.flashTimer = 0;
     this.bannerTimer = 0;
-    this.announcedBoss = false;
+    this.announcedBoss = bossDebug;
     this.playedClear = false;
     this.bossPhase = 0;
+    this.clearWasRecord = false;
     this.overlay.text = "";
     this.banner.text = "";
+    this.hideClearResult();
     this.bombFlash.clear();
     this.boss?.container.destroy();
     this.boss = null;
@@ -222,6 +263,9 @@ export class GameScene {
     if (!this.playfield.children.includes(this.player.container)) {
       this.playfield.addChild(this.player.container);
     }
+    if (bossDebug) {
+      this.showBanner("BOSS DEBUG\nFull power start", 1.4);
+    }
   }
 
   private showTitle() {
@@ -235,7 +279,10 @@ export class GameScene {
     this.boss?.container.destroy();
     this.boss = null;
     this.player.reset();
-    this.overlay.text = `MOONLIT SPELL BARRAGE\n\nDifficulty: ${this.difficulty.label}\n\nLeft/Right or 1-3 to change\nZ / SPACE to start`;
+    this.hideClearResult();
+    this.overlay.text = `MOONLIT SPELL BARRAGE\n\nDifficulty: ${this.difficulty.label}\n\nLeft/Right or 1-3 to change\nZ / SPACE to start${
+      DEV_BOSS_START_ENABLED ? "\nB to start boss debug" : ""
+    }`;
     this.hud.text = `Arrow/WASD: Move   Shift: Focus   Z/Space: Shot   X: Bomb   M: ${this.audio.isMuted() ? "Sound Off" : "Sound On"}   Esc: Pause`;
     this.subHud.text = `Graze enemy bullets for bonus score. ${this.difficulty.label} best: ${this.currentHighScore}`;
     this.bossBar.clear();
@@ -329,10 +376,59 @@ export class GameScene {
       this.saveHighScores(this.highScores);
     }
 
+    if (title === "STAGE CLEAR") {
+      this.clearWasRecord = wasRecord;
+      this.showClearResult(wasRecord);
+      return;
+    }
+
+    this.hideClearResult();
     this.overlay.text = `${title}\n\n${this.difficulty.label} Score ${this.score}\nPower Lv${this.powerLevel + 1} ${this.power}/${MAX_POWER}\nGraze ${this.graze}\nBest ${this.currentHighScore}${
       wasRecord ? "  NEW RECORD" : ""
     }\n\nR to retry   Z / SPACE to title`;
     this.subHud.text = wasRecord ? "New local high score saved." : "Run complete.";
+  }
+
+  private showClearResult(wasRecord: boolean) {
+    this.overlay.text = "";
+    this.banner.text = "";
+    this.clearFx.visible = true;
+    this.clearFxTimer = 0;
+    this.clearTitle.text = "STAGE CLEAR";
+    this.refreshClearResultText(wasRecord);
+    this.subHud.text = wasRecord ? "New local high score saved." : "Run complete.";
+    this.updateClearResult(0);
+  }
+
+  private refreshClearResultText(wasRecord: boolean) {
+    this.clearStats.text = `${this.difficulty.label} Score ${this.score}\nPower Lv${this.powerLevel + 1} ${this.power}/${MAX_POWER}   Graze ${this.graze}\nBest ${this.currentHighScore}`;
+    this.clearHint.text = `${wasRecord ? "NEW RECORD" : "RUN COMPLETE"}\nR to retry   Z / SPACE to title`;
+  }
+
+  private hideClearResult() {
+    this.clearFx.visible = false;
+    this.clearFxTimer = 0;
+    this.clearRays.clear();
+    this.clearSparkles.clear();
+    this.clearTitle.text = "";
+    this.clearStats.text = "";
+    this.clearHint.text = "";
+  }
+
+  private updateClearState(dt: number) {
+    this.bullets.update(dt, 720, 960);
+    this.drawCollectLine();
+    this.items.update(dt, this.player.pos, ITEM_COLLECT_RADIUS, true, (item) => this.collectItem(item.kind));
+
+    if (this.score > this.currentHighScore) {
+      this.highScores[this.difficulty.id] = this.score;
+      this.saveHighScores(this.highScores);
+      this.clearWasRecord = true;
+    }
+
+    this.refreshClearResultText(this.clearWasRecord);
+    this.drawStageProgress();
+    this.updateHud();
   }
 
   private drawBossBar() {
@@ -348,7 +444,7 @@ export class GameScene {
     this.bossBar.roundRect(x, y, width, 8, 4).fill({ color: 0xffffff, alpha: 0.18 });
     this.bossBar.roundRect(x, y, width * ratio, 8, 4).fill(0xff72bd);
 
-    for (const phaseRatio of [0.28, 0.62]) {
+    for (const phaseRatio of [0.2, 0.4, 0.6, 0.8]) {
       const markerX = x + width * phaseRatio;
       this.bossBar.moveTo(markerX, y - 3).lineTo(markerX, y + 11).stroke({ color: 0xffedf9, width: 1, alpha: 0.62 });
     }
@@ -453,9 +549,9 @@ export class GameScene {
   private dropBossItems(x: number, y: number) {
     for (let i = 0; i < 18; i += 1) {
       const angle = (Math.PI * 2 * i) / 18;
-      this.items.spawn("score", { x: x + Math.cos(angle) * 34, y: y + Math.sin(angle) * 22 }, Math.cos(angle) * 80);
+      this.items.spawn("score", { x: x + Math.cos(angle) * 34, y: y + Math.sin(angle) * 22 }, Math.cos(angle) * 80, true);
     }
-    this.items.spawn("bomb", { x, y });
+    this.items.spawn("bomb", { x, y }, 0, true);
   }
 
   private collectItem(kind: "score" | "bomb") {
@@ -468,7 +564,7 @@ export class GameScene {
       this.power = Math.min(MAX_POWER, this.power + 4);
       this.addScore(80);
       this.floatText("+ITEM", this.player.pos.x + 22, this.player.pos.y - 18, 0x9ffff4);
-      if (this.powerLevel > previousLevel) {
+      if (this.powerLevel > previousLevel && this.state !== "clear") {
         this.showBanner(`POWER UP\nLevel ${this.powerLevel + 1}`, 1.0);
         this.audio.spellChange();
       }
@@ -517,6 +613,56 @@ export class GameScene {
 
     this.bannerTimer = Math.max(0, this.bannerTimer - dt);
     this.banner.alpha = Math.min(1, this.bannerTimer);
+  }
+
+  private updateClearResult(dt: number) {
+    if (!this.clearFx.visible) {
+      return;
+    }
+
+    this.clearFxTimer += dt;
+    const t = this.clearFxTimer;
+    const reveal = Math.min(1, t / 0.65);
+    const pulse = Math.sin(t * 4.2);
+
+    this.clearRays.clear();
+    this.clearRays.rect(0, 0, 720, 960).fill({ color: 0x12081f, alpha: 0.34 * reveal });
+
+    const centerX = 360;
+    const centerY = 388;
+    for (let i = 0; i < 26; i += 1) {
+      const angle = (Math.PI * 2 * i) / 26 + t * 0.28;
+      const inner = 58 + Math.sin(t * 2.4 + i) * 8;
+      const outer = 390 + Math.sin(t * 1.7 + i * 0.6) * 34;
+      this.clearRays
+        .moveTo(centerX + Math.cos(angle) * inner, centerY + Math.sin(angle) * inner)
+        .lineTo(centerX + Math.cos(angle) * outer, centerY + Math.sin(angle) * outer)
+        .stroke({ color: i % 2 === 0 ? 0xffc3ec : 0xaefdf2, width: 2, alpha: 0.12 * reveal });
+    }
+
+    for (let i = 0; i < 4; i += 1) {
+      const radius = 88 + i * 48 + Math.sin(t * 2 + i) * 5;
+      this.clearRays
+        .circle(centerX, centerY, radius)
+        .stroke({ color: i % 2 === 0 ? 0xfff4a8 : 0xaefdf2, width: 2, alpha: (0.3 - i * 0.045) * reveal });
+    }
+
+    this.clearSparkles.clear();
+    for (let i = 0; i < 42; i += 1) {
+      const x = (i * 89 + Math.sin(t * 0.7 + i) * 18) % 720;
+      const y = ((i * 137 + t * 54) % 880) + 40;
+      const sparkle = 1.4 + ((i % 4) * 0.7 + Math.max(0, Math.sin(t * 5 + i)) * 2.2) * reveal;
+      this.clearSparkles.circle(x, y, sparkle).fill({
+        color: i % 3 === 0 ? 0xfff4a8 : i % 3 === 1 ? 0xffc3ec : 0xaefdf2,
+        alpha: (0.18 + Math.max(0, Math.sin(t * 4 + i)) * 0.42) * reveal
+      });
+    }
+
+    this.clearTitle.alpha = reveal;
+    this.clearTitle.scale.set(1 + Math.max(0, pulse) * 0.035);
+    this.clearTitle.y = 350 + Math.sin(t * 2.6) * 3;
+    this.clearStats.alpha = Math.min(1, Math.max(0, (t - 0.22) / 0.55));
+    this.clearHint.alpha = Math.min(1, Math.max(0, (t - 0.45) / 0.55));
   }
 
   private shake(seconds: number, strength: number) {

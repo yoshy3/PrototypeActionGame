@@ -33,6 +33,7 @@ export type CollectibleItem = {
   pos: Vector;
   vel: Vector;
   radius: number;
+  autoCollect: boolean;
   alive: boolean;
 };
 

@@ -17,7 +17,7 @@ export const difficulties: DifficultyConfig[] = [
     enemyHp: 0.85,
     bossHp: 0.82,
     bulletSpeed: 0.86,
-    fireDelay: 1.22,
+    fireDelay: 3.66,
     score: 0.85
   },
   {
@@ -26,7 +26,7 @@ export const difficulties: DifficultyConfig[] = [
     enemyHp: 1,
     bossHp: 1,
     bulletSpeed: 1,
-    fireDelay: 1,
+    fireDelay: 1.5,
     score: 1
   },
   {

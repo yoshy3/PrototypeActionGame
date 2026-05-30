@@ -15,12 +15,13 @@ export class Boss implements Actor {
   entered = false;
   phaseChanged = false;
   private age = 0;
+  private moveAge = 0;
   private fireTimer = 0.2;
   private phase = 0;
   private readonly body: CharacterVisual;
 
   constructor(private readonly difficulty: DifficultyConfig) {
-    this.maxHp = Math.ceil(520 * difficulty.bossHp);
+    this.maxHp = Math.ceil(3120 * difficulty.bossHp);
     this.hp = this.maxHp;
     const visual = createBossVisual();
     this.body = visual.character;
@@ -40,10 +41,12 @@ export class Boss implements Actor {
       if (this.pos.y >= 145) {
         this.pos.y = 145;
         this.entered = true;
+        this.moveAge = 0;
       }
     } else {
-      this.pos.x = 360 + Math.sin(this.age * 0.75) * 135;
-      this.pos.y = 145 + Math.sin(this.age * 1.15) * 24;
+      this.moveAge += dt;
+      this.pos.x = 360 + Math.sin(this.moveAge * 0.75) * 135;
+      this.pos.y = 145 + Math.sin(this.moveAge * 1.15) * 24;
     }
 
     this.container.position.set(this.pos.x, this.pos.y);
@@ -69,7 +72,13 @@ export class Boss implements Actor {
   }
 
   getSpellName() {
-    return ["Moonlit Petal Ring", "Starfall Spiral", "Lunar Butterfly Storm"][this.phase];
+    return [
+      "Moonlit Petal Ring",
+      "Starfall Spiral",
+      "Lunar Butterfly Storm",
+      "Eclipse Star Bloom",
+      "Full Moon Finale"
+    ][this.phase];
   }
 
   damage(amount: number) {
@@ -105,9 +114,9 @@ export class Boss implements Actor {
   }
 
   private fireSpiral(bullets: BulletSystem) {
-    for (let arm = 0; arm < 4; arm += 1) {
-      const angle = this.age * 2.4 + (Math.PI * 2 * arm) / 4;
-      bullets.spawn("enemy", arm % 2 === 0 ? "star" : "petal", this.pos, polar(angle, 170 * this.difficulty.bulletSpeed), 8, 1);
+    for (let arm = 0; arm < 6; arm += 1) {
+      const angle = this.age * 2.8 + (Math.PI * 2 * arm) / 6;
+      bullets.spawn("enemy", arm % 2 === 0 ? "star" : "petal", this.pos, polar(angle, 190 * this.difficulty.bulletSpeed), 8, 1);
     }
   }
 
@@ -117,10 +126,16 @@ export class Boss implements Actor {
       this.fireTimer = 0.42 * this.difficulty.fireDelay;
     } else if (this.phase === 1) {
       this.fireSpiral(bullets);
-      this.fireTimer = 0.18 * this.difficulty.fireDelay;
-    } else {
+      this.fireTimer = 0.15 * this.difficulty.fireDelay;
+    } else if (this.phase === 2) {
       this.fireButterflyStorm(bullets);
       this.fireTimer = 0.24 * this.difficulty.fireDelay;
+    } else if (this.phase === 3) {
+      this.fireStarBloom(bullets);
+      this.fireTimer = 0.3 * this.difficulty.fireDelay;
+    } else {
+      this.fireFinale(bullets);
+      this.fireTimer = 0.22 * this.difficulty.fireDelay;
     }
   }
 
@@ -146,11 +161,53 @@ export class Boss implements Actor {
     }
   }
 
+  private fireStarBloom(bullets: BulletSystem) {
+    const offset = this.age * 1.1;
+    for (let ring = 0; ring < 2; ring += 1) {
+      for (let i = 0; i < 14; i += 1) {
+        const angle = offset * (ring === 0 ? 1 : -1) + (Math.PI * 2 * i) / 14 + ring * 0.13;
+        bullets.spawn(
+          "enemy",
+          ring === 0 ? "star" : "petal",
+          this.pos,
+          polar(angle, (128 + ring * 36) * this.difficulty.bulletSpeed),
+          7,
+          1
+        );
+      }
+    }
+  }
+
+  private fireFinale(bullets: BulletSystem) {
+    this.fireSpiral(bullets);
+
+    const sweep = Math.sin(this.age * 2.2) * 0.24;
+    for (let side = -1; side <= 1; side += 2) {
+      for (let i = 0; i < 5; i += 1) {
+        const angle = Math.PI / 2 + side * (0.12 + i * 0.11 + sweep);
+        bullets.spawn(
+          "enemy",
+          "petal",
+          { x: this.pos.x + side * 30, y: this.pos.y + 8 },
+          polar(angle, (156 + i * 10) * this.difficulty.bulletSpeed),
+          7,
+          1
+        );
+      }
+    }
+  }
+
   private resolvePhase() {
-    if (this.hp < this.maxHp * 0.28) {
+    if (this.hp < this.maxHp * 0.2) {
+      return 4;
+    }
+    if (this.hp < this.maxHp * 0.4) {
+      return 3;
+    }
+    if (this.hp < this.maxHp * 0.6) {
       return 2;
     }
-    if (this.hp < this.maxHp * 0.62) {
+    if (this.hp < this.maxHp * 0.8) {
       return 1;
     }
     return 0;
