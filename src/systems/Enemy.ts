@@ -13,6 +13,7 @@ export class Enemy implements Actor {
   alive = true;
   private age = 0;
   private fireTimer = 0.5;
+  private disposed = false;
   private readonly body: CharacterVisual;
 
   constructor(
@@ -49,7 +50,7 @@ export class Enemy implements Actor {
 
     if (this.pos.y > 980) {
       this.alive = false;
-      this.container.destroy();
+      this.destroyContainer();
     }
   }
 
@@ -59,10 +60,24 @@ export class Enemy implements Actor {
     this.container.scale.set(1.12);
     if (this.hp <= 0) {
       this.alive = false;
-      this.container.destroy();
+      this.destroyContainer();
       return true;
     }
     return false;
+  }
+
+  destroy() {
+    this.alive = false;
+    this.destroyContainer();
+  }
+
+  private destroyContainer() {
+    if (this.disposed) {
+      return;
+    }
+
+    this.disposed = true;
+    this.container.destroy();
   }
 
   private fire(bullets: BulletSystem, playerX: number, pattern: StageEnemyPattern) {

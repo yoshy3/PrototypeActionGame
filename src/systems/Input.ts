@@ -1,6 +1,7 @@
 export class Input {
   private readonly keys = new Set<string>();
   private readonly pressed = new Set<string>();
+  private pointerPressed = false;
 
   constructor() {
     window.addEventListener("keydown", (event) => {
@@ -18,6 +19,10 @@ export class Input {
     window.addEventListener("keyup", (event) => {
       this.keys.delete(this.normalize(event.key));
     });
+
+    window.addEventListener("pointerdown", () => {
+      this.pointerPressed = true;
+    });
   }
 
   isDown(...keys: string[]) {
@@ -28,8 +33,13 @@ export class Input {
     return keys.some((key) => this.pressed.has(this.normalize(key)));
   }
 
+  wasAnyPressed() {
+    return this.pointerPressed || this.pressed.size > 0;
+  }
+
   endFrame() {
     this.pressed.clear();
+    this.pointerPressed = false;
   }
 
   private normalize(key: string) {

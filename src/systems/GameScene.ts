@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Text } from "pixi.js";
+import { Application, Assets, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
 import { AudioSystem } from "./AudioSystem";
 import { Boss } from "./Boss";
 import { BulletSystem } from "./BulletSystem";
@@ -10,9 +10,10 @@ import { ItemSystem } from "./ItemSystem";
 import { MAX_POWER, Player, POWER_STEP } from "./Player";
 import { bossStartTime, stageSpawns } from "./StageScript";
 
-type GameState = "title" | "playing" | "paused" | "clear" | "gameover";
+type GameState = "boot" | "title" | "playing" | "paused" | "clear" | "gameover";
 const HIGH_SCORE_KEY = "moonlit-spell-barrage.highScores";
 const LEGACY_HIGH_SCORE_KEY = "moonlit-spell-barrage.highScore";
+const TITLE_IMAGE_URL = new URL("../assets/images/title.png", import.meta.url).href;
 const AUTO_COLLECT_LINE_Y = 340;
 const ITEM_COLLECT_RADIUS = 40;
 const DEV_BOSS_START_ENABLED = import.meta.env.DEV;
@@ -26,6 +27,7 @@ export class GameScene {
   private readonly input = new Input();
   private readonly root = new Container();
   private readonly background = new Graphics();
+  private readonly titleArt = new Sprite(Texture.EMPTY);
   private readonly bombFlash = new Graphics();
   private readonly collectLine = new Graphics();
   private readonly playfield = new Container();
@@ -61,7 +63,7 @@ export class GameScene {
   });
   private readonly bossBar = new Graphics();
   private readonly stageProgress = new Graphics();
-  private state: GameState = "title";
+  private state: GameState = "boot";
   private time = 0;
   private spawnIndex = 0;
   private boss: Boss | null = null;
@@ -87,8 +89,14 @@ export class GameScene {
 
   async init() {
     this.highScores = this.loadHighScores();
+    const titleTexture = (await Assets.load(TITLE_IMAGE_URL)) as Texture;
+    this.titleArt.texture = titleTexture;
+    this.titleArt.anchor.set(0.5);
+    this.titleArt.position.set(360, 180);
+    this.fitTitleArt();
+
     this.app.stage.addChild(this.root);
-    this.root.addChild(this.background, this.playfield, this.collectLine, this.bombFlash, this.ui);
+    this.root.addChild(this.background, this.titleArt, this.playfield, this.collectLine, this.bombFlash, this.ui);
     this.playfield.addChild(this.items.container, this.bullets.container, this.player.container);
 
     this.overlay.anchor.set(0.5);
@@ -108,7 +116,7 @@ export class GameScene {
     this.ui.addChild(this.hud, this.subHud, this.bossBar, this.stageProgress, this.clearFx, this.banner, this.overlay);
 
     this.drawBackground();
-    this.showTitle();
+    this.showBootScreen();
   }
 
   update(dt: number) {
@@ -116,9 +124,19 @@ export class GameScene {
     this.updateShake(dt);
     this.updateClearResult(dt);
 
+    if (this.state === "boot") {
+      if (this.input.wasAnyPressed()) {
+        this.audio.resume();
+        this.showTitle();
+      }
+      this.input.endFrame();
+      return;
+    }
+
     if (this.input.wasPressed("escape") && (this.state === "playing" || this.state === "paused")) {
       this.state = this.state === "playing" ? "paused" : "playing";
       this.audio.setPaused(this.state === "paused");
+      this.overlay.position.set(360, 460);
       this.overlay.text = this.state === "paused" ? "PAUSED\n\nEsc to resume\nR to retry   Z / SPACE to title" : "";
     }
     if (this.input.wasPressed("m")) {
@@ -181,6 +199,9 @@ export class GameScene {
         continue;
       }
       enemy.update(dt, this.bullets, this.player.pos.x);
+      if (!enemy.alive) {
+        continue;
+      }
       enemy.container.scale.set(1 + Math.max(0, enemy.container.scale.x - 1 - dt * 5));
     }
 
@@ -239,6 +260,9 @@ export class GameScene {
     this.audio.setPaused(false);
     this.audio.playMusic(bossDebug ? "boss" : "stage");
     this.state = "playing";
+    this.titleArt.visible = false;
+    this.playfield.visible = true;
+    this.overlay.position.set(360, 460);
     this.time = bossDebug ? bossStartTime : 0;
     this.spawnIndex = bossDebug ? stageSpawns.length : 0;
     this.score = 0;
@@ -262,7 +286,7 @@ export class GameScene {
     this.items.clear();
 
     for (const enemy of this.enemies) {
-      enemy.container.destroy();
+      enemy.destroy();
     }
     this.enemies.length = 0;
 
@@ -279,21 +303,40 @@ export class GameScene {
     this.state = "title";
     this.audio.setPaused(false);
     this.audio.playMusic("title");
+    this.titleArt.visible = true;
+    this.playfield.visible = false;
     this.bullets.clear();
     this.items.clear();
     for (const enemy of this.enemies) {
-      enemy.container.destroy();
+      enemy.destroy();
     }
     this.enemies.length = 0;
     this.boss?.container.destroy();
     this.boss = null;
     this.player.reset();
     this.hideClearResult();
-    this.overlay.text = `MOONLIT SPELL BARRAGE\n\nDifficulty: ${this.difficulty.label}\n\nLeft/Right or 1-3 to change\nZ / SPACE to start${
+    this.overlay.position.set(360, 560);
+    this.overlay.text = `Difficulty: ${this.difficulty.label}\n\nLeft/Right or 1-3 to change\nZ / SPACE to start${
       DEV_BOSS_START_ENABLED ? "\nB to start boss debug" : ""
     }`;
     this.hud.text = `Arrow/WASD: Move   Shift: Focus   Z/Space: Shot   X: Bomb   M: ${this.audio.isMuted() ? "Sound Off" : "Sound On"}   Esc: Pause`;
     this.subHud.text = `Graze enemy bullets for bonus score. ${this.difficulty.label} best: ${this.currentHighScore}`;
+    this.bossBar.clear();
+    this.stageProgress.clear();
+    this.bombFlash.clear();
+    this.collectLine.clear();
+  }
+
+  private showBootScreen() {
+    this.state = "boot";
+    this.titleArt.visible = true;
+    this.playfield.visible = false;
+    this.hideClearResult();
+    this.overlay.position.set(360, 560);
+    this.overlay.text = "CLICK OR PRESS ANY KEY";
+    this.hud.text = "";
+    this.subHud.text = "";
+    this.banner.text = "";
     this.bossBar.clear();
     this.stageProgress.clear();
     this.bombFlash.clear();
@@ -393,6 +436,7 @@ export class GameScene {
     }
 
     this.hideClearResult();
+    this.overlay.position.set(360, 460);
     this.overlay.text = `${title}\n\n${this.difficulty.label} Score ${this.score}\nPower Lv${this.powerLevel + 1} ${this.power}/${MAX_POWER}\nGraze ${this.graze}\nBest ${this.currentHighScore}${
       wasRecord ? "  NEW RECORD" : ""
     }\n\nR to retry   Z / SPACE to title`;
@@ -790,5 +834,16 @@ export class GameScene {
           .stroke({ color: 0xff87c9, width: 1, alpha: 0.12 });
       }
     }
+  }
+
+  private fitTitleArt() {
+    const width = this.titleArt.texture.width;
+    const height = this.titleArt.texture.height;
+    if (width <= 0 || height <= 0) {
+      return;
+    }
+
+    const scale = Math.min(600 / width, 300 / height, 1);
+    this.titleArt.scale.set(scale);
   }
 }
