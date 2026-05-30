@@ -1,5 +1,5 @@
 import { Application, Assets, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
-import { AudioSystem } from "./AudioSystem";
+import { AudioSystem, type MusicTrackId } from "./AudioSystem";
 import { Asteroid } from "./Asteroid";
 import { Boss } from "./Boss";
 import { BulletSystem } from "./BulletSystem";
@@ -20,6 +20,8 @@ const ITEM_COLLECT_RADIUS = 40;
 const ASTEROID_HIT_RADIUS_SCALE = 0.52;
 const FIRST_EXTEND_SCORE = 10000;
 const EXTEND_SCORE_STEP = 20000;
+const MAX_BOMBS = 5;
+const PAUSE_TITLE_HOLD_TIME = 1.2;
 const DEV_BOSS_START_ENABLED = import.meta.env.DEV;
 type HighScores = Record<DifficultyId, number>;
 type StartOptions = {
@@ -81,6 +83,7 @@ export class GameScene {
     text: "",
     style: { fill: 0xaefdf2, fontSize: 18, align: "center", fontWeight: "700", letterSpacing: 0 }
   });
+  private readonly pauseTitleProgress = new Graphics();
   private readonly bossBar = new Graphics();
   private readonly stageProgress = new Graphics();
   private state: GameState = "boot";
@@ -111,6 +114,7 @@ export class GameScene {
   private nextExtendScore = FIRST_EXTEND_SCORE;
   private stageClearTimer = 0;
   private stageTransitionTimer = 0;
+  private pauseTitleHoldTimer = 0;
 
   constructor(private readonly app: Application) {}
 
@@ -140,7 +144,7 @@ export class GameScene {
     this.clearFx.addChild(this.clearRays, this.clearSparkles, this.clearTitle, this.clearStats, this.clearHint);
     this.hud.position.set(22, 20);
     this.subHud.position.set(22, 64);
-    this.ui.addChild(this.hud, this.subHud, this.bossBar, this.stageProgress, this.clearFx, this.banner, this.overlay);
+    this.ui.addChild(this.hud, this.subHud, this.bossBar, this.stageProgress, this.clearFx, this.banner, this.overlay, this.pauseTitleProgress);
 
     this.drawBackground();
     this.showBootScreen();
@@ -165,7 +169,8 @@ export class GameScene {
       this.state = this.state === "playing" ? "paused" : "playing";
       this.audio.setPaused(this.state === "paused");
       this.overlay.position.set(360, 460);
-      this.overlay.text = this.state === "paused" ? "PAUSED\n\nEsc/Start to resume\nR to retry   Z / SPACE to title" : "";
+      this.overlay.text = this.state === "paused" ? "PAUSED\n\nEsc/Start to resume\nR to retry   Hold Z / SPACE to title" : "";
+      this.clearPauseTitleProgress();
     }
     if (this.input.wasPressed("m")) {
       this.audio.resume();
@@ -186,8 +191,8 @@ export class GameScene {
       this.start();
     } else if (this.state === "paused" && this.input.wasPressed("r")) {
       this.start();
-    } else if (this.state === "paused" && this.input.wasPressed("z", " ", "enter")) {
-      this.showTitle();
+    } else if (this.state === "paused") {
+      this.updatePausedTitleReturn(dt);
     } else if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("n")) {
       this.start({ stageDebug: 2, bossDebug: true });
     } else if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("g")) {
@@ -268,7 +273,7 @@ export class GameScene {
       this.boss = new Boss(this.difficulty, this.currentStage.bossKind);
       this.bossPhase = this.boss.getPhase();
       this.playfield.addChild(this.boss.container);
-      this.audio.playMusic("boss");
+      this.audio.playMusic(this.getBossMusic());
       this.audio.bossAppear();
     }
     this.boss?.update(dt, this.bullets, this.player.pos);
@@ -323,11 +328,12 @@ export class GameScene {
   private start(options: StartOptions = {}) {
     const bossDebug = DEV_BOSS_START_ENABLED && options.bossDebug === true;
     const stageDebug = DEV_BOSS_START_ENABLED ? options.stageDebug ?? 1 : 1;
+    this.currentStageIndex = Math.max(0, Math.min(stages.length - 1, stageDebug - 1));
+    this.clearPauseTitleProgress();
     this.audio.resume();
     this.audio.setPaused(false);
-    this.audio.playMusic(bossDebug ? "boss" : "stage");
+    this.audio.playMusic(bossDebug ? this.getBossMusic() : "stage");
     this.state = "playing";
-    this.currentStageIndex = Math.max(0, Math.min(stages.length - 1, stageDebug - 1));
     this.titleArt.visible = false;
     this.playfield.visible = true;
     this.overlay.position.set(360, 460);
@@ -380,6 +386,7 @@ export class GameScene {
 
   private showTitle() {
     this.state = "title";
+    this.clearPauseTitleProgress();
     this.audio.setPaused(false);
     this.audio.playMusic("title");
     this.titleArt.visible = true;
@@ -410,6 +417,45 @@ export class GameScene {
     this.stageProgress.clear();
     this.bombFlash.clear();
     this.collectLine.clear();
+  }
+
+  private getBossMusic(): MusicTrackId {
+    return this.currentStage.bossMusic ?? "boss";
+  }
+
+  private updatePausedTitleReturn(dt: number) {
+    if (this.input.isDown("z", " ")) {
+      this.pauseTitleHoldTimer = Math.min(PAUSE_TITLE_HOLD_TIME, this.pauseTitleHoldTimer + dt);
+      this.drawPauseTitleProgress(this.pauseTitleHoldTimer / PAUSE_TITLE_HOLD_TIME);
+      if (this.pauseTitleHoldTimer >= PAUSE_TITLE_HOLD_TIME) {
+        this.showTitle();
+      }
+      return;
+    }
+
+    this.clearPauseTitleProgress();
+  }
+
+  private drawPauseTitleProgress(ratio: number) {
+    const clamped = Math.max(0, Math.min(1, ratio));
+    const x = 210;
+    const y = 565;
+    const width = 300;
+    const height = 16;
+    this.pauseTitleProgress.clear();
+    this.pauseTitleProgress.roundRect(x - 8, y - 26, width + 16, height + 44, 8).fill({ color: 0x080412, alpha: 0.7 });
+    this.pauseTitleProgress.roundRect(x, y, width, height, 8).fill({ color: 0xffffff, alpha: 0.2 });
+    this.pauseTitleProgress.roundRect(x, y, width * clamped, height, 8).fill({ color: 0xff72bd, alpha: 0.95 });
+    this.pauseTitleProgress.moveTo(x + width * clamped, y - 4).lineTo(x + width * clamped, y + height + 4).stroke({
+      color: 0xffedf9,
+      width: 2,
+      alpha: 0.8
+    });
+  }
+
+  private clearPauseTitleProgress() {
+    this.pauseTitleHoldTimer = 0;
+    this.pauseTitleProgress.clear();
   }
 
   private showBootScreen() {
@@ -934,7 +980,7 @@ export class GameScene {
 
   private collectItem(kind: "score" | "bomb") {
     if (kind === "bomb") {
-      this.bombs = Math.min(4, this.bombs + 1);
+      this.bombs = Math.min(MAX_BOMBS, this.bombs + 1);
       this.addScore(250);
       this.floatText("+BOMB", this.player.pos.x, this.player.pos.y - 30, 0xfff4a8);
     } else {

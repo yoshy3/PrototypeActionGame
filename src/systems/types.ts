@@ -1,4 +1,5 @@
 import type { Container, Graphics } from "pixi.js";
+import type { MusicTrackId } from "./AudioSystem";
 
 export type Vector = {
   x: number;
@@ -108,6 +109,7 @@ export type StageDefinition = {
   subtitle: string;
   warningText: string;
   bossKind: BossKind;
+  bossMusic?: MusicTrackId;
   spawns: EnemySpawn[];
   obstacles?: AsteroidSpawn[];
   bossStartTime: number;

@@ -18,6 +18,7 @@ export class Boss implements Actor {
   private moveAge = 0;
   private fireTimer = 0.2;
   private fireLockTimer = 0;
+  private breakableVolley = 0;
   private phase = 0;
   private readonly body: CharacterVisual;
   private target: Vector = { x: 360, y: 820 };
@@ -217,21 +218,33 @@ export class Boss implements Actor {
       this.fireSplitSpiral(bullets, 4, 0.66);
       this.fireTimer = 0.18 * this.difficulty.fireDelay;
     } else if (this.phase === 2) {
-      this.fireBreakableRing(bullets, 10);
+      if (this.shouldFireBreakable()) {
+        this.fireBreakableRing(bullets, 10);
+      }
+      this.fireNormalStarFan(bullets, 7);
       this.fireTimer = 0.44 * this.difficulty.fireDelay;
     } else if (this.phase === 3) {
-      this.fireBreakableComets(bullets, 12);
+      if (this.shouldFireBreakable()) {
+        this.fireBreakableComets(bullets, 12);
+      }
       this.fireNormalStarFan(bullets, 9);
       this.fireTimer = 0.34 * this.difficulty.fireDelay;
     } else {
       if (Math.floor(this.age * 4) % 2 === 0) {
         this.fireSplitSpiral(bullets, 6, 0.5);
-      } else {
+      } else if (this.shouldFireBreakable()) {
         this.fireBreakableComets(bullets, 14);
         this.fireNormalStarFan(bullets, 7);
+      } else {
+        this.fireNormalStarFan(bullets, 11);
       }
       this.fireTimer = 0.28 * this.difficulty.fireDelay;
     }
+  }
+
+  private shouldFireBreakable() {
+    this.breakableVolley += 1;
+    return this.breakableVolley % 2 === 1;
   }
 
   private fireSplitSigil(bullets: BulletSystem, count: number, splitAt: number) {
