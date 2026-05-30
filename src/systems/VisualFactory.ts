@@ -261,8 +261,23 @@ export const drawLaserVisual = (g: Graphics, owner: BulletOwner, length: number,
   const inner = owner === "enemy" ? 0xfff4a8 : 0xa8fff8;
 
   if (!active) {
-    g.moveTo(0, 0).lineTo(length, 0).stroke({ color: outer, width: 1, alpha: 0.2 + activeRatio * 0.22 });
-    g.moveTo(0, 0).lineTo(length, 0).stroke({ color: core, width: 1, alpha: 0.24 + activeRatio * 0.28 });
+    const pulse = 0.5 + Math.sin(activeRatio * Math.PI * 8) * 0.5;
+    const blinkOn = Math.floor(activeRatio * 10) % 2 === 0;
+    const blink = blinkOn ? 1 : 0.18;
+    const warningRamp = 0.82 + activeRatio * 0.18;
+    const glowAlpha = (0.2 + activeRatio * 0.26 + pulse * 0.06) * blink * warningRamp;
+    const coreAlpha = (0.5 + activeRatio * 0.3) * blink * warningRamp;
+    g.moveTo(0, 0).lineTo(length, 0).stroke({ color: outer, width: Math.max(3, width * 0.78), alpha: glowAlpha });
+    g.moveTo(0, 0).lineTo(length, 0).stroke({ color: inner, width: Math.max(2, width * 0.5), alpha: (0.34 + activeRatio * 0.22) * blink });
+    g.moveTo(0, 0).lineTo(length, 0).stroke({ color: core, width: Math.max(1.5, width * 0.25), alpha: coreAlpha });
+
+    const markerStep = 32;
+    const markerHalfHeight = Math.max(3, width * 0.45);
+    for (let x = 16; x < length; x += markerStep) {
+      const markerBlink = (Math.floor(x / markerStep) + Math.floor(activeRatio * 10)) % 2 === 0 ? 1 : 0.12;
+      const markerAlpha = Math.min(0.85, (0.24 + activeRatio * 0.42 + pulse * 0.1) * markerBlink);
+      g.moveTo(x, -markerHalfHeight).lineTo(x, markerHalfHeight).stroke({ color: core, width: 1, alpha: markerAlpha });
+    }
     return;
   }
 

@@ -340,7 +340,7 @@ export class Boss implements Actor {
         length,
         width,
         0.82,
-        0.42,
+        0.7,
         1,
         360 * this.difficulty.bulletSpeed,
         0.66
@@ -357,7 +357,7 @@ export class Boss implements Actor {
       length,
       width,
       0.86,
-      0.42,
+      0.7,
       1,
       370 * this.difficulty.bulletSpeed,
       0.66
