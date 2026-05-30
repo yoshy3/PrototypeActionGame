@@ -5,6 +5,7 @@ const titleMusicUrl = new URL("../assets/audio/title.mp3", import.meta.url).href
 const stageMusicUrl = new URL("../assets/audio/stage.mp3", import.meta.url).href;
 const bossMusicUrl = new URL("../assets/audio/boss.mp3", import.meta.url).href;
 const clearMusicUrl = new URL("../assets/audio/clear.mp3", import.meta.url).href;
+const gameOverMusicUrl = new URL("../assets/audio/game-over.mp3", import.meta.url).href;
 
 type GeneratedMusicTrack = {
   mode: "generated";
@@ -46,13 +47,9 @@ const musicTracks: Record<MusicTrackId, MusicTrack> = {
     volume: 0.24
   },
   gameover: {
-    mode: "generated",
-    bpm: 70,
-    volume: 0.21,
-    lead: [392, 0, 369.99, 0, 329.63, 293.66, 261.63, 0],
-    bass: [98, 0, 87.31, 0],
-    pad: [196, 174.61, 164.81, 130.81],
-    leadWave: "sine"
+    mode: "asset",
+    url: gameOverMusicUrl,
+    volume: 0.24
   }
 };
 
