@@ -52,7 +52,8 @@ export class BulletSystem {
     warningTime: number,
     damage: number,
     speed = 360,
-    growTime = 0.18
+    growTime = 0.18,
+    sourceId?: number
   ) {
     const sprite = createLaserVisual(owner, length, width);
     sprite.position.set(origin.x, origin.y);
@@ -62,6 +63,7 @@ export class BulletSystem {
     this.lasers.push({
       id: this.nextId++,
       owner,
+      sourceId,
       sprite,
       origin: { ...origin },
       angle,
@@ -170,6 +172,15 @@ export class BulletSystem {
     }
     laser.alive = false;
     laser.sprite.destroy();
+  }
+
+  killWarningLasersBySource(sourceId: number) {
+    for (const laser of this.lasers) {
+      if (laser.sourceId === sourceId && laser.age < laser.warningTime) {
+        this.killLaser(laser);
+      }
+    }
+    this.compact();
   }
 
   clear(owner?: BulletOwner) {

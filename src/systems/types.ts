@@ -35,6 +35,7 @@ export type Bullet = {
 export type Laser = {
   id: number;
   owner: BulletOwner;
+  sourceId?: number;
   sprite: Graphics;
   origin: Vector;
   angle: number;

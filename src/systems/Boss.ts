@@ -5,6 +5,8 @@ import type { BulletSystem } from "./BulletSystem";
 import type { Actor, BossKind, Vector } from "./types";
 import { CharacterVisual, createBossVisual } from "./VisualFactory";
 
+const STARLIGHT_LASER_MIN_INTERVAL = 1.1;
+
 export class Boss implements Actor {
   readonly container = new Container();
   readonly pos = { x: 360, y: -80 };
@@ -19,6 +21,7 @@ export class Boss implements Actor {
   private fireTimer = 0.2;
   private fireLockTimer = 0;
   private breakableVolley = 0;
+  private starlightLaserCooldown = 0;
   private phase = 0;
   private readonly body: CharacterVisual;
   private target: Vector = { x: 360, y: 820 };
@@ -42,6 +45,7 @@ export class Boss implements Actor {
 
     this.age += dt;
     this.fireLockTimer = Math.max(0, this.fireLockTimer - dt);
+    this.starlightLaserCooldown = Math.max(0, this.starlightLaserCooldown - dt);
     this.target = { ...player };
     const previousX = this.pos.x;
     if (!this.entered) {
@@ -180,34 +184,49 @@ export class Boss implements Actor {
   private fireStarlightSpell(bullets: BulletSystem) {
     if (this.phase === 0) {
       this.fireFlower(bullets);
-      if (Math.floor(this.age * 2.2) % 2 === 0) {
+      if (Math.floor(this.age * 2.2) % 2 === 0 && this.tryStartStarlightLaserVolley()) {
         this.fireBossLaserFan(bullets, 2, 420, 6);
       }
       this.fireTimer = 0.4 * this.difficulty.fireDelay;
     } else if (this.phase === 1) {
       this.fireSpiral(bullets);
-      if (Math.floor(this.age * 3) % 3 === 0) {
+      if (Math.floor(this.age * 3) % 3 === 0 && this.tryStartStarlightLaserVolley()) {
         this.fireAimedLaser(bullets, { x: this.pos.x - 60, y: this.pos.y + 22 }, 520, 6, -0.18);
         this.fireAimedLaser(bullets, { x: this.pos.x + 60, y: this.pos.y + 22 }, 520, 6, 0.18);
       }
       this.fireTimer = 0.18 * this.difficulty.fireDelay;
     } else if (this.phase === 2) {
       this.fireButterflyStorm(bullets);
-      this.fireBossLaserFan(bullets, 3, 560, 7);
+      if (this.tryStartStarlightLaserVolley()) {
+        this.fireBossLaserFan(bullets, 3, 560, 7);
+      }
       this.fireTimer = 0.34 * this.difficulty.fireDelay;
     } else if (this.phase === 3) {
       this.fireStarBloom(bullets);
-      this.fireAimedLaser(bullets, { x: this.pos.x, y: this.pos.y + 8 }, 700, 8, 0);
-      if (Math.sin(this.age * 1.6) > 0) {
-        this.fireAimedLaser(bullets, { x: this.pos.x - 90, y: this.pos.y + 58 }, 620, 7, -0.24);
-        this.fireAimedLaser(bullets, { x: this.pos.x + 90, y: this.pos.y + 58 }, 620, 7, 0.24);
+      if (this.tryStartStarlightLaserVolley()) {
+        this.fireAimedLaser(bullets, { x: this.pos.x, y: this.pos.y + 8 }, 700, 8, 0);
+        if (Math.sin(this.age * 1.6) > 0) {
+          this.fireAimedLaser(bullets, { x: this.pos.x - 90, y: this.pos.y + 58 }, 620, 7, -0.24);
+          this.fireAimedLaser(bullets, { x: this.pos.x + 90, y: this.pos.y + 58 }, 620, 7, 0.24);
+        }
       }
       this.fireTimer = 0.38 * this.difficulty.fireDelay;
     } else {
       this.fireFinale(bullets);
-      this.fireBossLaserFan(bullets, 4, 720, 8);
+      if (this.tryStartStarlightLaserVolley()) {
+        this.fireBossLaserFan(bullets, 4, 720, 8);
+      }
       this.fireTimer = 0.3 * this.difficulty.fireDelay;
     }
+  }
+
+  private tryStartStarlightLaserVolley() {
+    if (this.starlightLaserCooldown > 0) {
+      return false;
+    }
+
+    this.starlightLaserCooldown = Math.max(STARLIGHT_LASER_MIN_INTERVAL, 1.2 * this.difficulty.fireDelay);
+    return true;
   }
 
   private fireCosmicSpell(bullets: BulletSystem) {

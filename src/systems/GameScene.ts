@@ -636,6 +636,7 @@ export class GameScene {
           if (enemy.alive && circlesOverlap(bullet.pos, bullet.radius, enemy.pos, enemy.radius)) {
             this.bullets.kill(bullet);
             if (enemy.damage(bullet.damage)) {
+              this.bullets.killWarningLasersBySource(enemy.id);
               this.addScore(120);
               this.audio.enemyDown();
               this.dropEnemyItems(enemy.pos.x, enemy.pos.y);

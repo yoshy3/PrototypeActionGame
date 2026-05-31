@@ -5,7 +5,10 @@ import type { BulletSystem } from "./BulletSystem";
 import type { Actor, EnemySpawn, StageEnemyPattern } from "./types";
 import { CharacterVisual, createEnemyVisual } from "./VisualFactory";
 
+let nextEnemyId = 1;
+
 export class Enemy implements Actor {
+  readonly id = nextEnemyId++;
   readonly container = new Container();
   readonly pos = { x: 0, y: 0 };
   readonly radius = 18;
@@ -167,7 +170,7 @@ export class Enemy implements Actor {
 
     if (pattern === "laserSlash") {
       const angle = Math.atan2(800 - this.pos.y, playerX - this.pos.x);
-      bullets.spawnLaser("enemy", { x: this.pos.x, y: this.pos.y + 8 }, angle, 270, 5, 0.72, 0.7, 1, 300 * this.difficulty.bulletSpeed, 0.52);
+      bullets.spawnLaser("enemy", { x: this.pos.x, y: this.pos.y + 8 }, angle, 270, 5, 0.72, 0.7, 1, 300 * this.difficulty.bulletSpeed, 0.52, this.id);
       this.fireLockTimer = Math.max(this.fireLockTimer, 0.92);
       bullets.spawn("enemy", "petal", this.pos, polar(Math.PI / 2, 120 * this.difficulty.bulletSpeed), 7, 1);
       return;
@@ -176,7 +179,7 @@ export class Enemy implements Actor {
     if (pattern === "laserGate") {
       const targetY = 760 + Math.sin(this.age * 3) * 70;
       const angle = Math.atan2(targetY - this.pos.y, playerX - this.pos.x);
-      bullets.spawnLaser("enemy", { x: this.pos.x, y: this.pos.y + 8 }, angle, 310, 5, 0.74, 0.7, 1, 310 * this.difficulty.bulletSpeed, 0.54);
+      bullets.spawnLaser("enemy", { x: this.pos.x, y: this.pos.y + 8 }, angle, 310, 5, 0.74, 0.7, 1, 310 * this.difficulty.bulletSpeed, 0.54, this.id);
       this.fireLockTimer = Math.max(this.fireLockTimer, 0.96);
       bullets.spawn("enemy", "star", this.pos, polar(angle - 0.22, 140 * this.difficulty.bulletSpeed), 7, 1);
       bullets.spawn("enemy", "star", this.pos, polar(angle + 0.22, 140 * this.difficulty.bulletSpeed), 7, 1);
@@ -185,7 +188,7 @@ export class Enemy implements Actor {
 
     if (pattern === "laserSnipe") {
       const angle = Math.atan2(780 - this.pos.y, playerX - this.pos.x);
-      bullets.spawnLaser("enemy", this.pos, angle, 330, 6, 0.78, 0.7, 1, 320 * this.difficulty.bulletSpeed, 0.54);
+      bullets.spawnLaser("enemy", this.pos, angle, 330, 6, 0.78, 0.7, 1, 320 * this.difficulty.bulletSpeed, 0.54, this.id);
       this.fireLockTimer = Math.max(this.fireLockTimer, 0.94);
       bullets.spawn("enemy", "orb", this.pos, polar(angle, 170 * this.difficulty.bulletSpeed), 8, 1);
       return;
