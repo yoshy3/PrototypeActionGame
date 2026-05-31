@@ -1,0 +1,67 @@
+Moonlit Spell Barrage - AI Generated Content Notice
+
+This project was created primarily with AI-assisted generation tools. The
+software code and generated media assets have different reuse terms.
+
+Software
+--------
+
+The program code was created with assistance from Codex App.
+
+The software source code and project configuration files are licensed under
+the MIT License. See LICENSE.
+
+The MIT License does not apply to generated media assets under src/assets/**.
+
+Generated Media Assets
+----------------------
+
+Graphics:
+
+- src/assets/images/*.png
+  - Generated with assistance from Codex App.
+
+- src/assets/characters/*.png
+  - Generated with ChatGPT Image 2.
+
+Music:
+
+- src/assets/audio/*.mp3
+  - Generated with SUNO free plan and/or Stable Audio free plan.
+
+Sound effects:
+
+- src/assets/audio/sfx/*.wav
+  - Generated with ElevenLabs ElevenCreative free plan and/or Bfxr.
+
+Asset Reuse Restrictions
+------------------------
+
+Generated media assets in src/assets/** are not released under the MIT
+License. Do not assume that these assets may be reused, redistributed,
+commercialized, sublicensed, or incorporated into other projects under the
+same terms as the software code.
+
+Some music and sound effect files were generated with free-plan services.
+Those services may prohibit commercial use, require attribution, or impose
+other restrictions depending on the service, plan, and generation date.
+Before reusing any generated media asset from this repository, review the
+current terms for the relevant service and obtain any rights or permissions
+required for your use case.
+
+Bfxr is an open-source sound effect tool based on Sfxr, and the bfxr2 tool is
+distributed under the MIT License. This notice does not relicense Bfxr itself.
+Generated WAV files included in this repository remain subject to this
+project's asset reuse restrictions above.
+
+Reference Terms
+---------------
+
+- OpenAI Terms of Use: https://openai.com/policies/terms-of-use/
+- Suno Pricing: https://suno.com/pricing
+- Suno free plan rights: https://help.suno.com/en/articles/9601601
+- Stable Audio FAQ: https://stableaudio.com/faqs
+- ElevenLabs publishing/commercial use help:
+  https://help.elevenlabs.io/hc/en-us/articles/13313564601361-Can-I-publish-the-content-I-generate-on-the-platform
+- Bfxr: https://www.bfxr.net/
+- bfxr2 GitHub MIT license: https://github.com/increpare/bfxr2
