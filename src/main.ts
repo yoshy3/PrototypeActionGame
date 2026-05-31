@@ -1,11 +1,12 @@
-import { Application } from "pixi.js";
+import { Application, type ApplicationOptions } from "pixi.js";
 import "./style.css";
 import { GameScene } from "./systems/GameScene";
 import { loadCharacterAssets } from "./systems/VisualFactory";
 
-const app = new Application();
+let app = new Application();
 const RENDERER_KEY = "moonlit-spell-barrage.renderer";
 const ASSET_LOAD_TIMEOUT_MS = 8000;
+const RENDERER_INIT_TIMEOUT_MS = 8000;
 const appRoot = document.querySelector<HTMLDivElement>("#app");
 const appStatus = document.querySelector<HTMLDivElement>("#app-status");
 
@@ -29,7 +30,7 @@ const getSavedRenderer = () => {
   }
 };
 
-const useCanvasRenderer = import.meta.env.PROD || getSavedRenderer() === "canvas";
+const useCanvasRenderer = getSavedRenderer() === "canvas";
 
 const rememberCanvasRenderer = () => {
   try {
@@ -41,17 +42,18 @@ const rememberCanvasRenderer = () => {
 
 try {
   setStatus("Starting renderer...");
-  await app.init({
+  const baseOptions: Partial<ApplicationOptions> = {
     width: 720,
     height: 960,
     backgroundAlpha: 0,
     antialias: true,
     resolution: Math.min(window.devicePixelRatio, 2),
     autoDensity: true,
-    preference: useCanvasRenderer ? "canvas" : ["webgl", "canvas"],
     failIfMajorPerformanceCaveat: true,
     powerPreference: "high-performance"
-  });
+  };
+
+  await initRendererWithTimeout(useCanvasRenderer ? "canvas" : "webgl", baseOptions);
 
   app.canvas.addEventListener("webglcontextlost", (event) => {
     event.preventDefault();
@@ -77,4 +79,30 @@ try {
   });
 } catch (error) {
   showFatalError(error);
+}
+
+async function initRendererWithTimeout(preference: "webgl" | "canvas", options: Partial<ApplicationOptions>) {
+  try {
+    await Promise.race([
+      app.init({ ...options, preference }),
+      new Promise<never>((_, reject) =>
+        window.setTimeout(() => reject(new Error(`${preference} renderer initialization timed out`)), RENDERER_INIT_TIMEOUT_MS)
+      )
+    ]);
+  } catch (error) {
+    if (preference === "canvas") {
+      throw error;
+    }
+
+    console.warn("WebGL renderer failed; retrying with Canvas renderer.", error);
+    rememberCanvasRenderer();
+    setStatus("Starting fallback renderer...");
+    app = new Application();
+    await Promise.race([
+      app.init({ ...options, preference: "canvas" }),
+      new Promise<never>((_, reject) =>
+        window.setTimeout(() => reject(new Error("canvas renderer initialization timed out")), RENDERER_INIT_TIMEOUT_MS)
+      )
+    ]);
+  }
 }
