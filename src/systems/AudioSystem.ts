@@ -7,6 +7,7 @@ export type MusicTrackId =
   | "boss"
   | "lastBoss"
   | "clear"
+  | "ending"
   | "gameover";
 
 const titleMusicUrl = new URL("../assets/audio/title.mp3", import.meta.url).href;
@@ -16,6 +17,7 @@ const stage3MusicUrl = new URL("../assets/audio/stage3.mp3", import.meta.url).hr
 const bossMusicUrl = new URL("../assets/audio/boss.mp3", import.meta.url).href;
 const lastBossMusicUrl = new URL("../assets/audio/last-boss.mp3", import.meta.url).href;
 const clearMusicUrl = new URL("../assets/audio/clear.mp3", import.meta.url).href;
+const endingMusicUrl = new URL("../assets/audio/ending.mp3", import.meta.url).href;
 const gameOverMusicUrl = new URL("../assets/audio/game-over.mp3", import.meta.url).href;
 const shootSfxUrl = new URL("../assets/audio/sfx/shoot.wav", import.meta.url).href;
 const defeatSfxUrl = new URL("../assets/audio/sfx/defeat.wav", import.meta.url).href;
@@ -91,6 +93,11 @@ const musicTracks: Record<MusicTrackId, MusicTrack> = {
   clear: {
     mode: "asset",
     url: clearMusicUrl,
+    volume: 0.24
+  },
+  ending: {
+    mode: "asset",
+    url: endingMusicUrl,
     volume: 0.24
   },
   gameover: {

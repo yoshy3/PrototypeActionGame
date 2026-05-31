@@ -11,10 +11,20 @@ import { ItemSystem } from "./ItemSystem";
 import { MAX_POWER, Player, POWER_STEP } from "./Player";
 import { stages } from "./StageScript";
 
-type GameState = "boot" | "title" | "playing" | "paused" | "stageClearPause" | "stageTransition" | "clear" | "gameover";
+type GameState =
+  | "boot"
+  | "title"
+  | "playing"
+  | "paused"
+  | "stageClearPause"
+  | "stageTransition"
+  | "clear"
+  | "ending"
+  | "gameover";
 const HIGH_SCORE_KEY = "moonlit-spell-barrage.highScores";
 const LEGACY_HIGH_SCORE_KEY = "moonlit-spell-barrage.highScore";
 const TITLE_IMAGE_URL = new URL("../assets/images/title.png", import.meta.url).href;
+const ENDING_IMAGE_URL = new URL("../assets/images/ending.png", import.meta.url).href;
 const AUTO_COLLECT_LINE_Y = 340;
 const ITEM_COLLECT_RADIUS = 40;
 const ASTEROID_HIT_RADIUS_SCALE = 0.52;
@@ -22,6 +32,10 @@ const FIRST_EXTEND_SCORE = 10000;
 const EXTEND_SCORE_STEP = 20000;
 const MAX_BOMBS = 5;
 const PAUSE_TITLE_HOLD_TIME = 1.2;
+const ENDING_MIN_INPUT_TIME = 5.0;
+const ENDING_CREDIT_START_Y = 1040;
+const ENDING_CREDIT_SCROLL_SPEED = 42;
+const ENDING_HINT_Y = 70;
 const DEV_BOSS_START_ENABLED = import.meta.env.DEV;
 type HighScores = Record<DifficultyId, number>;
 type StartOptions = {
@@ -35,6 +49,21 @@ export class GameScene {
   private readonly root = new Container();
   private readonly background = new Graphics();
   private readonly titleArt = new Sprite(Texture.EMPTY);
+  private readonly endingLayer = new Container();
+  private readonly endingArt = new Sprite(Texture.EMPTY);
+  private readonly endingShade = new Graphics();
+  private readonly endingCredits = new Container();
+  private readonly endingHint = new Text({
+    text: "",
+    style: {
+      fill: 0xaefdf2,
+      fontSize: 18,
+      align: "center",
+      fontWeight: "700",
+      letterSpacing: 0,
+      stroke: { color: 0x080412, width: 5 }
+    }
+  });
   private readonly bombFlash = new Graphics();
   private readonly collectLine = new Graphics();
   private readonly playfield = new Container();
@@ -98,6 +127,7 @@ export class GameScene {
   private bombs = 2;
   private clearTimer = 0;
   private clearInputTimer = 0;
+  private endingInputTimer = 0;
   private backgroundOffset = 0;
   private flashTimer = 0;
   private bannerTimer = 0;
@@ -115,6 +145,7 @@ export class GameScene {
   private stageClearTimer = 0;
   private stageTransitionTimer = 0;
   private pauseTitleHoldTimer = 0;
+  private endingCreditScrollY = ENDING_CREDIT_START_Y;
 
   constructor(private readonly app: Application) {}
 
@@ -126,8 +157,22 @@ export class GameScene {
     this.titleArt.position.set(360, 180);
     this.fitTitleArt();
 
+    const endingTexture = (await Assets.load(ENDING_IMAGE_URL)) as Texture;
+    this.endingArt.texture = endingTexture;
+    this.endingArt.anchor.set(0.5);
+    this.endingArt.position.set(360, 480);
+    this.fitEndingArt();
+
     this.app.stage.addChild(this.root);
-    this.root.addChild(this.background, this.titleArt, this.playfield, this.collectLine, this.bombFlash, this.ui);
+    this.root.addChild(
+      this.background,
+      this.titleArt,
+      this.playfield,
+      this.collectLine,
+      this.bombFlash,
+      this.endingLayer,
+      this.ui
+    );
     this.playfield.addChild(this.items.container, this.bullets.container, this.player.container);
 
     this.overlay.anchor.set(0.5);
@@ -142,6 +187,12 @@ export class GameScene {
     this.clearHint.position.set(360, 590);
     this.clearFx.visible = false;
     this.clearFx.addChild(this.clearRays, this.clearSparkles, this.clearTitle, this.clearStats, this.clearHint);
+    this.endingHint.anchor.set(0.5);
+    this.endingHint.position.set(360, 870);
+    this.endingLayer.visible = false;
+    this.createEndingCredits();
+    this.endingHint.position.set(360, ENDING_HINT_Y);
+    this.endingLayer.addChild(this.endingArt, this.endingShade, this.endingCredits, this.endingHint);
     this.hud.position.set(22, 20);
     this.subHud.position.set(22, 64);
     this.ui.addChild(this.hud, this.subHud, this.bossBar, this.stageProgress, this.clearFx, this.banner, this.overlay, this.pauseTitleProgress);
@@ -187,6 +238,8 @@ export class GameScene {
       this.start({ stageDebug: 2 });
     } else if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("c")) {
       this.start({ stageDebug: 3 });
+    } else if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("e")) {
+      this.beginEnding();
     } else if (this.state === "title" && this.input.wasPressed("z", " ", "enter")) {
       this.start();
     } else if (this.state === "paused" && this.input.wasPressed("r")) {
@@ -198,14 +251,24 @@ export class GameScene {
     } else if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("g")) {
       this.start({ stageDebug: 3, bossDebug: true });
     } else if (
-      (this.state === "gameover" || (this.state === "clear" && this.clearInputTimer <= 0)) &&
+      (this.state === "gameover" ||
+        (this.state === "clear" && this.clearInputTimer <= 0) ||
+        (this.state === "ending" && this.endingInputTimer <= 0)) &&
       this.input.wasPressed("r")
     ) {
       this.start();
     } else if (
-      (this.state === "gameover" || (this.state === "clear" && this.clearInputTimer <= 0)) &&
+      this.state === "gameover" &&
       this.input.wasPressed("z", " ", "enter")
     ) {
+      this.showTitle();
+    } else if (this.state === "clear" && this.clearInputTimer <= 0 && this.input.wasPressed("z", " ", "enter")) {
+      if (this.isFinalStage) {
+        this.beginEnding();
+      } else {
+        this.showTitle();
+      }
+    } else if (this.state === "ending" && this.endingInputTimer <= 0 && this.input.wasPressed("z", " ", "enter")) {
       this.showTitle();
     }
 
@@ -227,6 +290,12 @@ export class GameScene {
 
     if (this.state === "clear") {
       this.updateClearState(dt);
+      this.input.endFrame();
+      return;
+    }
+
+    if (this.state === "ending") {
+      this.updateEndingState(dt);
       this.input.endFrame();
       return;
     }
@@ -347,6 +416,7 @@ export class GameScene {
     this.nextExtendScore = FIRST_EXTEND_SCORE;
     this.clearTimer = 0;
     this.clearInputTimer = 0;
+    this.endingInputTimer = 0;
     this.stageClearTimer = 0;
     this.bossAsteroidTimer = 0;
     this.flashTimer = 0;
@@ -358,6 +428,7 @@ export class GameScene {
     this.overlay.text = "";
     this.banner.text = "";
     this.hideClearResult();
+    this.hideEnding();
     this.bombFlash.clear();
     this.boss?.container.destroy();
     this.boss = null;
@@ -405,9 +476,10 @@ export class GameScene {
     this.boss = null;
     this.player.reset();
     this.hideClearResult();
+    this.hideEnding();
     this.overlay.position.set(360, 560);
     this.overlay.text = `Difficulty: ${this.difficulty.label}\n\nLeft/Right or 1-3 to change\nZ / SPACE to start${
-      DEV_BOSS_START_ENABLED ? "\nB: Stage 1 boss   V/C: Stage 2/3   N/G: Stage 2/3 boss" : ""
+      DEV_BOSS_START_ENABLED ? "\nB: Stage 1 boss   V/C: Stage 2/3\nN/G: Stage 2/3 boss   E: Ending" : ""
     }`;
     this.hud.text = `Move: Arrow/WASD/Pad   Shot: Z/A   Bomb: X/X\nFocus: Shift/RB   M: ${
       this.audio.isMuted() ? "Sound Off" : "Sound On"
@@ -467,6 +539,7 @@ export class GameScene {
     this.titleArt.visible = true;
     this.playfield.visible = false;
     this.hideClearResult();
+    this.hideEnding();
     this.overlay.position.set(360, 560);
     this.overlay.text = "CLICK OR PRESS ANY KEY\nGAMEPAD BUTTON";
     this.hud.text = "";
@@ -724,10 +797,11 @@ export class GameScene {
 
   private refreshClearResultText(wasRecord: boolean) {
     this.clearStats.text = `${this.difficulty.label} Score ${this.score}\nPower Lv${this.powerLevel + 1} ${this.power}/${MAX_POWER}   Graze ${this.graze}\nBest ${this.currentHighScore}`;
+    const readyText = this.isFinalStage ? "Press Z / SPACE for ending" : "R to retry   Z / SPACE to title";
     this.clearHint.text =
       this.clearInputTimer > 0
         ? `${wasRecord ? "NEW RECORD" : "RUN COMPLETE"}\nPlease wait...`
-        : `${wasRecord ? "NEW RECORD" : "RUN COMPLETE"}\nR to retry   Z / SPACE to title`;
+        : `${wasRecord ? "NEW RECORD" : "RUN COMPLETE"}\n${readyText}`;
   }
 
   private hideClearResult() {
@@ -755,6 +829,143 @@ export class GameScene {
     this.refreshClearResultText(this.clearWasRecord);
     this.drawStageProgress();
     this.updateHud();
+  }
+
+  private beginEnding() {
+    this.state = "ending";
+    this.endingInputTimer = ENDING_MIN_INPUT_TIME;
+    this.endingCreditScrollY = ENDING_CREDIT_START_Y;
+    this.audio.playMusic("ending");
+    this.hideClearResult();
+    this.titleArt.visible = false;
+    this.playfield.visible = false;
+    this.collectLine.clear();
+    this.bossBar.clear();
+    this.stageProgress.clear();
+    this.bombFlash.clear();
+    this.overlay.text = "";
+    this.banner.text = "";
+    this.hud.text = "";
+    this.subHud.text = "";
+    this.bullets.clear();
+    this.items.clear();
+    this.boss?.container.destroy();
+    this.boss = null;
+    for (const enemy of this.enemies) {
+      enemy.destroy();
+    }
+    this.enemies.length = 0;
+    for (const asteroid of this.asteroids) {
+      asteroid.destroy();
+    }
+    this.asteroids.length = 0;
+    this.showEnding();
+  }
+
+  private showEnding() {
+    this.endingLayer.visible = true;
+    this.endingShade.clear();
+    this.endingShade.rect(0, 0, 720, 960).fill({ color: 0x080412, alpha: 0.28 });
+    this.endingCredits.y = this.endingCreditScrollY;
+    this.refreshEndingHint();
+  }
+
+  private hideEnding() {
+    this.endingLayer.visible = false;
+    this.endingInputTimer = 0;
+    this.endingCreditScrollY = ENDING_CREDIT_START_Y;
+    this.endingShade.clear();
+    this.endingCredits.y = this.endingCreditScrollY;
+    this.endingHint.text = "";
+  }
+
+  private updateEndingState(dt: number) {
+    this.endingInputTimer = Math.max(0, this.endingInputTimer - dt);
+    const centeredY = (960 - this.endingCredits.height) / 2;
+    this.endingCreditScrollY = Math.max(centeredY, this.endingCreditScrollY - ENDING_CREDIT_SCROLL_SPEED * dt);
+    this.endingCredits.y = this.endingCreditScrollY;
+    this.refreshEndingHint();
+  }
+
+  private createEndingCredits() {
+    const lines: Array<{ text: string; kind: "title" | "heading" | "role" | "tool" | "gap" }> = [
+      { text: "MOONLIT SPELL BARRAGE", kind: "title" },
+      { text: "", kind: "gap" },
+      { text: "Inspired by Touhou Project", kind: "heading" },
+      { text: "", kind: "gap" },
+      { text: "Staff", kind: "heading" },
+      { text: "", kind: "gap" },
+      { text: "Programmer", kind: "role" },
+      { text: "Codex App (GPT-5.5)", kind: "tool" },
+      { text: "", kind: "gap" },
+      { text: "Graphics Artist", kind: "role" },
+      { text: "ChatGPT Image 2", kind: "tool" },
+      { text: "", kind: "gap" },
+      { text: "Music Composer", kind: "role" },
+      { text: "SUNO", kind: "tool" },
+      { text: "Stable Audio", kind: "tool" },
+      { text: "", kind: "gap" },
+      { text: "SFX Designer", kind: "role" },
+      { text: "ElevenCreative", kind: "tool" },
+      { text: "Bfxr", kind: "tool" }
+    ];
+
+    let y = 0;
+    for (const line of lines) {
+      if (line.kind === "gap") {
+        y += 34;
+        continue;
+      }
+
+      const label = new Text({
+        text: line.text,
+        style: {
+          fill: this.getEndingCreditColor(line.kind),
+          fontSize: this.getEndingCreditFontSize(line.kind),
+          align: "center",
+          fontWeight: line.kind === "tool" ? "600" : "700",
+          letterSpacing: 0,
+          stroke: { color: 0x080412, width: line.kind === "title" ? 7 : 5 },
+          wordWrap: true,
+          wordWrapWidth: 600
+        }
+      });
+      label.anchor.set(0.5, 0);
+      label.position.set(360, y);
+      this.endingCredits.addChild(label);
+      y += line.kind === "title" ? 62 : line.kind === "heading" ? 52 : line.kind === "role" ? 38 : 32;
+    }
+  }
+
+  private getEndingCreditColor(kind: "title" | "heading" | "role" | "tool") {
+    if (kind === "tool") {
+      return 0xaefdf2;
+    }
+    if (kind === "role") {
+      return 0xffe2f3;
+    }
+    if (kind === "heading") {
+      return 0xfff4a8;
+    }
+    return 0xffffff;
+  }
+
+  private getEndingCreditFontSize(kind: "title" | "heading" | "role" | "tool") {
+    if (kind === "title") {
+      return 42;
+    }
+    if (kind === "heading") {
+      return 25;
+    }
+    if (kind === "role") {
+      return 28;
+    }
+    return 22;
+  }
+
+  private refreshEndingHint() {
+    this.endingHint.text =
+      this.endingInputTimer > 0 ? "Please wait..." : "R to retry   Z / SPACE to title";
   }
 
   private drawBossBar() {
@@ -1008,6 +1219,10 @@ export class GameScene {
     return stages[this.currentStageIndex];
   }
 
+  private get isFinalStage() {
+    return this.currentStageIndex >= stages.length - 1;
+  }
+
   private get powerLevel() {
     return Math.min(3, Math.floor(this.power / POWER_STEP));
   }
@@ -1226,5 +1441,16 @@ export class GameScene {
 
     const scale = Math.min(600 / width, 300 / height, 1);
     this.titleArt.scale.set(scale);
+  }
+
+  private fitEndingArt() {
+    const width = this.endingArt.texture.width;
+    const height = this.endingArt.texture.height;
+    if (width <= 0 || height <= 0) {
+      return;
+    }
+
+    const scale = Math.max(720 / width, 960 / height);
+    this.endingArt.scale.set(scale);
   }
 }
