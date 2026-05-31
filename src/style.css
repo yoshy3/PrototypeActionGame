@@ -23,6 +23,25 @@ body,
   overflow: hidden;
 }
 
+#app {
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+
+#app-status {
+  color: #ffedf9;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.5;
+  max-width: min(640px, calc(100vw - 32px));
+  padding: 16px;
+  text-align: center;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+  white-space: pre-wrap;
+  z-index: 1;
+}
+
 body {
   display: grid;
   place-items: center;
