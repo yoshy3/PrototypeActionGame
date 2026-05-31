@@ -14,7 +14,7 @@ const getSavedRenderer = () => {
   }
 };
 
-const useCanvasRenderer = getSavedRenderer() === "canvas";
+const useCanvasRenderer = import.meta.env.PROD || getSavedRenderer() === "canvas";
 
 await app.init({
   width: 720,
