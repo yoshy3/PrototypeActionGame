@@ -140,7 +140,9 @@ export const createBossVisual = (kind: BossKind = "lunarWitch") => {
 export const createAsteroidVisual = (variant: number) => {
   const frames = loadedFrames.get("asteroid");
   if (!frames) {
-    throw new Error("Character assets must be loaded before creating asteroid visual.");
+    const fallback = createFallbackCharacterVisual(characterSheets.asteroid.displaySize);
+    fallback.rotation = variant * 0.4;
+    return fallback;
   }
 
   const row = stateRows[Math.max(0, Math.min(stateRows.length - 1, variant % stateRows.length))];
@@ -156,10 +158,23 @@ export const createAsteroidVisual = (variant: number) => {
 const createCharacterVisual = (key: keyof typeof characterSheets) => {
   const frames = loadedFrames.get(key);
   if (!frames) {
-    throw new Error(`Character assets must be loaded before creating ${key} visual.`);
+    return createFallbackCharacterVisual(characterSheets[key].displaySize);
   }
 
   return new CharacterVisual(frames, characterSheets[key].displaySize);
+};
+
+const createFallbackCharacterVisual = (displaySize: number) => {
+  const frame = Texture.WHITE;
+  return new CharacterVisual(
+    {
+      idle: [frame],
+      left: [frame],
+      right: [frame],
+      hit: [frame]
+    },
+    displaySize
+  );
 };
 
 const sliceCharacterSheet = (texture: Texture, cellSize: number): CharacterFrames => {

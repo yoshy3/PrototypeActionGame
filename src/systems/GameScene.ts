@@ -40,6 +40,7 @@ const PRESS_PROMPT_BLINK_SPEED = 5.2;
 const PRESS_PROMPT_MIN_ALPHA = 0.34;
 const DEV_BOSS_START_ENABLED = import.meta.env.DEV;
 const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? "dev";
+const ASSET_LOAD_TIMEOUT_MS = 8000;
 type HighScores = Record<DifficultyId, number>;
 type StartOptions = {
   bossDebug?: boolean;
@@ -174,17 +175,11 @@ export class GameScene {
 
   async init() {
     this.highScores = this.loadHighScores();
-    const titleTexture = (await Assets.load(TITLE_IMAGE_URL)) as Texture;
-    this.titleArt.texture = titleTexture;
     this.titleArt.anchor.set(0.5);
     this.titleArt.position.set(360, 180);
-    this.fitTitleArt();
 
-    const endingTexture = (await Assets.load(ENDING_IMAGE_URL)) as Texture;
-    this.endingArt.texture = endingTexture;
     this.endingArt.anchor.set(0.5);
     this.endingArt.position.set(360, 480);
-    this.fitEndingArt();
 
     this.app.stage.addChild(this.root);
     this.root.addChild(
@@ -228,6 +223,18 @@ export class GameScene {
 
     this.drawBackground();
     this.showBootScreen();
+
+    const titleTexture = await this.loadTextureOptional(TITLE_IMAGE_URL);
+    if (titleTexture) {
+      this.titleArt.texture = titleTexture;
+      this.fitTitleArt();
+    }
+
+    const endingTexture = await this.loadTextureOptional(ENDING_IMAGE_URL);
+    if (endingTexture) {
+      this.endingArt.texture = endingTexture;
+      this.fitEndingArt();
+    }
   }
 
   update(dt: number) {
@@ -1510,5 +1517,17 @@ export class GameScene {
 
     const scale = Math.max(720 / width, 960 / height);
     this.endingArt.scale.set(scale);
+  }
+
+  private async loadTextureOptional(url: string) {
+    try {
+      return (await Promise.race([
+        Assets.load(url) as Promise<Texture>,
+        new Promise<null>((resolve) => window.setTimeout(() => resolve(null), ASSET_LOAD_TIMEOUT_MS))
+      ])) as Texture | null;
+    } catch (error) {
+      console.warn("Asset load failed:", url, error);
+      return null;
+    }
   }
 }

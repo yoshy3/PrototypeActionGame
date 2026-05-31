@@ -5,6 +5,7 @@ import { loadCharacterAssets } from "./systems/VisualFactory";
 
 const app = new Application();
 const RENDERER_KEY = "moonlit-spell-barrage.renderer";
+const ASSET_LOAD_TIMEOUT_MS = 8000;
 
 const getSavedRenderer = () => {
   try {
@@ -44,7 +45,14 @@ app.canvas.addEventListener("webglcontextlost", (event) => {
   }, 120);
 });
 
-await loadCharacterAssets();
+try {
+  await Promise.race([
+    loadCharacterAssets(),
+    new Promise<void>((resolve) => window.setTimeout(resolve, ASSET_LOAD_TIMEOUT_MS))
+  ]);
+} catch (error) {
+  console.warn("Character asset load failed:", error);
+}
 
 const scene = new GameScene(app);
 await scene.init();
