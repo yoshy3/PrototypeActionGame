@@ -332,7 +332,7 @@ export class GameScene {
     this.clearPauseTitleProgress();
     this.audio.resume();
     this.audio.setPaused(false);
-    this.audio.playMusic(bossDebug ? this.getBossMusic() : "stage");
+    this.audio.playMusic(bossDebug ? this.getBossMusic() : this.getStageMusic());
     this.state = "playing";
     this.titleArt.visible = false;
     this.playfield.visible = true;
@@ -421,6 +421,10 @@ export class GameScene {
 
   private getBossMusic(): MusicTrackId {
     return this.currentStage.bossMusic ?? "boss";
+  }
+
+  private getStageMusic(): MusicTrackId {
+    return this.currentStage.stageMusic ?? "stage";
   }
 
   private updatePausedTitleReturn(dt: number) {
@@ -877,7 +881,7 @@ export class GameScene {
     this.clearTimer = 0;
     this.announcedBoss = false;
     this.bossPhase = 0;
-    this.audio.playMusic("stage");
+    this.audio.playMusic(this.getStageMusic());
     this.overlay.position.set(360, 460);
     this.overlay.text = `${this.currentStage.title.toUpperCase()}\n\n${this.currentStage.subtitle}`;
     this.bullets.clear();

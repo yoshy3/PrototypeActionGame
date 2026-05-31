@@ -221,6 +221,7 @@ export const stages: StageDefinition[] = [
     subtitle: "Starlight crystal corridor",
     warningText: "Starlight Oracle descends",
     bossKind: "starlightOracle",
+    stageMusic: "stage2",
     spawns: doubleStageSpawns(stageTwoSpawns),
     bossStartTime: 90.0
   },
@@ -230,6 +231,7 @@ export const stages: StageDefinition[] = [
     subtitle: "Asteroid spell belt",
     warningText: "Cosmic Sorcerer opens the belt",
     bossKind: "cosmicSorcerer",
+    stageMusic: "stage3",
     bossMusic: "lastBoss",
     spawns: thickenStageSpawns(stageThreeSpawns),
     obstacles: stageThreeAsteroids,

@@ -109,6 +109,7 @@ export type StageDefinition = {
   subtitle: string;
   warningText: string;
   bossKind: BossKind;
+  stageMusic?: MusicTrackId;
   bossMusic?: MusicTrackId;
   spawns: EnemySpawn[];
   obstacles?: AsteroidSpawn[];

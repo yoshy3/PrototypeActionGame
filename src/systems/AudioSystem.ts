@@ -1,8 +1,18 @@
 type WaveType = OscillatorType;
-export type MusicTrackId = "title" | "stage" | "boss" | "lastBoss" | "clear" | "gameover";
+export type MusicTrackId =
+  | "title"
+  | "stage"
+  | "stage2"
+  | "stage3"
+  | "boss"
+  | "lastBoss"
+  | "clear"
+  | "gameover";
 
 const titleMusicUrl = new URL("../assets/audio/title.mp3", import.meta.url).href;
 const stageMusicUrl = new URL("../assets/audio/stage.mp3", import.meta.url).href;
+const stage2MusicUrl = new URL("../assets/audio/stage2.mp3", import.meta.url).href;
+const stage3MusicUrl = new URL("../assets/audio/stage3.mp3", import.meta.url).href;
 const bossMusicUrl = new URL("../assets/audio/boss.mp3", import.meta.url).href;
 const lastBossMusicUrl = new URL("../assets/audio/last-boss.mp3", import.meta.url).href;
 const clearMusicUrl = new URL("../assets/audio/clear.mp3", import.meta.url).href;
@@ -56,6 +66,16 @@ const musicTracks: Record<MusicTrackId, MusicTrack> = {
   stage: {
     mode: "asset",
     url: stageMusicUrl,
+    volume: 0.24
+  },
+  stage2: {
+    mode: "asset",
+    url: stage2MusicUrl,
+    volume: 0.24
+  },
+  stage3: {
+    mode: "asset",
+    url: stage3MusicUrl,
     volume: 0.24
   },
   boss: {
