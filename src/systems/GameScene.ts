@@ -513,7 +513,7 @@ export class GameScene {
     this.overlay.text = `Difficulty: ${this.difficulty.label}\nVersion ${APP_VERSION}\n\nLeft/Right or 1-3 to change${
       DEV_BOSS_START_ENABLED ? "\nB: Stage 1 boss   V/C: Stage 2/3\nN/G: Stage 2/3 boss   E: Ending" : ""
     }`;
-    this.setOverlayPrompt("Z / SPACE to start", DEV_BOSS_START_ENABLED ? 670 : 635);
+    this.setOverlayPrompt("Z / SPACE to start", this.getOverlayBottom() + 44);
     this.hud.text = `Move: Arrow/WASD/Pad   Shot: Z/A   Bomb: X/X\nFocus: Shift/RB   M: ${
       this.audio.isMuted() ? "Sound Off" : "Sound On"
     }   Esc/Start: Pause`;
@@ -1019,6 +1019,10 @@ export class GameScene {
   private setOverlayPrompt(text: string, y = 620) {
     this.overlayPrompt.text = text;
     this.overlayPrompt.position.set(360, y);
+  }
+
+  private getOverlayBottom() {
+    return this.overlay.y + this.overlay.height * (1 - this.overlay.anchor.y);
   }
 
   private drawBossBar() {
