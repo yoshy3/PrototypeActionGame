@@ -2,6 +2,10 @@
 
 A browser-based 2D bullet-hell shooting prototype built with TypeScript, Vite, and PixiJS.
 
+## Play Online
+
+Try the latest version at https://yoshy3.github.io/PrototypeActionGame/!
+
 ## Run
 
 ```powershell
