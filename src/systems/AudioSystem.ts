@@ -179,7 +179,9 @@ export class AudioSystem {
       this.refreshMusicVolume();
       if (!this.muted) {
         void this.context.resume();
-        void this.assetMusic?.play();
+        this.assetMusic?.play().catch((err) => {
+          console.warn("Audio autoplay or resume blocked:", err);
+        });
       }
     }
     return this.muted;
@@ -511,7 +513,9 @@ export class AudioSystem {
     this.currentTrack = trackId;
     this.refreshMusicVolume();
     if (!this.muted) {
-      void this.assetMusic.play();
+      this.assetMusic.play().catch((err) => {
+        console.warn("Audio autoplay blocked:", err);
+      });
     }
   }
 
