@@ -39,6 +39,7 @@ const ENDING_HINT_Y = 70;
 const PRESS_PROMPT_BLINK_SPEED = 5.2;
 const PRESS_PROMPT_MIN_ALPHA = 0.34;
 const DEV_BOSS_START_ENABLED = import.meta.env.DEV;
+const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? "dev";
 type HighScores = Record<DifficultyId, number>;
 type StartOptions = {
   bossDebug?: boolean;
@@ -509,7 +510,7 @@ export class GameScene {
     this.hideClearResult();
     this.hideEnding();
     this.overlay.position.set(360, 560);
-    this.overlay.text = `Difficulty: ${this.difficulty.label}\n\nLeft/Right or 1-3 to change${
+    this.overlay.text = `Difficulty: ${this.difficulty.label}\nVersion ${APP_VERSION}\n\nLeft/Right or 1-3 to change${
       DEV_BOSS_START_ENABLED ? "\nB: Stage 1 boss   V/C: Stage 2/3\nN/G: Stage 2/3 boss   E: Ending" : ""
     }`;
     this.setOverlayPrompt("Z / SPACE to start", DEV_BOSS_START_ENABLED ? 670 : 635);
