@@ -30,7 +30,10 @@ export class Boss implements Actor {
     private readonly difficulty: DifficultyConfig,
     private readonly kind: BossKind = "lunarWitch"
   ) {
-    this.maxHp = Math.ceil((kind === "cosmicSorcerer" ? 2550 : kind === "starlightOracle" ? 4200 : 3120) * difficulty.bossHp);
+    this.maxHp = Math.ceil(
+      (kind === "salamander" ? 5000 : kind === "cosmicSorcerer" ? 2550 : kind === "starlightOracle" ? 4200 : 3120) *
+        difficulty.bossHp
+    );
     this.hp = this.maxHp;
     const visual = createBossVisual(kind);
     this.body = visual.character;
@@ -104,6 +107,16 @@ export class Boss implements Actor {
       ][this.phase];
     }
 
+    if (this.kind === "salamander") {
+      return [
+        "Cinderfall Rain",
+        "Volcanic Flame Wheel",
+        "Magma Serpent Gate",
+        "Firestorm Caldera",
+        "Salamander Inferno"
+      ][this.phase];
+    }
+
     return [
       "Moonlit Petal Ring",
       "Starfall Spiral",
@@ -153,6 +166,11 @@ export class Boss implements Actor {
   }
 
   private fireSpell(bullets: BulletSystem) {
+    if (this.kind === "salamander") {
+      this.fireSalamanderSpell(bullets);
+      return;
+    }
+
     if (this.kind === "cosmicSorcerer") {
       this.fireCosmicSpell(bullets);
       return;
@@ -386,6 +404,97 @@ export class Boss implements Actor {
 
   private angleToTarget(origin: Vector) {
     return Math.atan2(this.target.y - origin.y, this.target.x - origin.x);
+  }
+
+  private fireSalamanderSpell(bullets: BulletSystem) {
+    if (this.phase === 0) {
+      this.fireCinderRain(bullets, 7, 0.42);
+      this.fireTimer = 0.34 * this.difficulty.fireDelay;
+    } else if (this.phase === 1) {
+      this.fireFlameWheel(bullets, 8, 186);
+      this.fireTimer = 0.16 * this.difficulty.fireDelay;
+    } else if (this.phase === 2) {
+      this.fireMagmaGate(bullets);
+      this.fireTimer = 0.38 * this.difficulty.fireDelay;
+    } else if (this.phase === 3) {
+      this.fireCinderRain(bullets, 10, 0.58);
+      this.fireFlameFan(bullets, 9);
+      this.fireTimer = 0.28 * this.difficulty.fireDelay;
+    } else {
+      if (Math.floor(this.age * 5) % 2 === 0) {
+        this.fireFlameWheel(bullets, 10, 210);
+      } else {
+        this.fireMagmaGate(bullets);
+        this.fireFlameFan(bullets, 11);
+      }
+      this.fireTimer = 0.22 * this.difficulty.fireDelay;
+    }
+  }
+
+  private fireCinderRain(bullets: BulletSystem, count: number, spread: number) {
+    const center = this.angleToTarget({ x: this.pos.x, y: this.pos.y + 22 });
+    for (let i = 0; i < count; i += 1) {
+      const t = count === 1 ? 0 : i / (count - 1) - 0.5;
+      const wave = Math.sin(this.age * 2.6 + i) * 0.11;
+      bullets.spawn(
+        "enemy",
+        "fire",
+        { x: this.pos.x + t * 150, y: this.pos.y + 24 + Math.abs(t) * 30 },
+        polar(center + t * spread + wave, (150 + Math.abs(t) * 72) * this.difficulty.bulletSpeed),
+        9,
+        1
+      );
+    }
+  }
+
+  private fireFlameWheel(bullets: BulletSystem, arms: number, speed: number) {
+    for (let arm = 0; arm < arms; arm += 1) {
+      const angle = this.age * 2.35 + (Math.PI * 2 * arm) / arms;
+      bullets.spawn(
+        "enemy",
+        "fire",
+        { x: this.pos.x + Math.cos(angle) * 34, y: this.pos.y + 18 + Math.sin(angle) * 18 },
+        polar(angle + Math.PI / 2, speed * this.difficulty.bulletSpeed),
+        arm % 2 === 0 ? 10 : 8,
+        1
+      );
+    }
+  }
+
+  private fireMagmaGate(bullets: BulletSystem) {
+    const sweep = Math.sin(this.age * 1.7) * 0.22;
+    const center = this.angleToTarget({ x: this.pos.x, y: this.pos.y + 18 });
+    for (let side = -1; side <= 1; side += 2) {
+      bullets.spawnLaser(
+        "enemy",
+        { x: this.pos.x + side * 72, y: this.pos.y + 32 },
+        center + side * (0.32 + sweep),
+        620,
+        8,
+        0.76,
+        0.66,
+        1,
+        420 * this.difficulty.bulletSpeed,
+        0.58
+      );
+    }
+    this.fireLockTimer = Math.max(this.fireLockTimer, 1.02);
+    this.fireFlameFan(bullets, 7);
+  }
+
+  private fireFlameFan(bullets: BulletSystem, count: number) {
+    const center = this.angleToTarget({ x: this.pos.x, y: this.pos.y + 28 });
+    for (let i = 0; i < count; i += 1) {
+      const t = count === 1 ? 0 : i / (count - 1) - 0.5;
+      bullets.spawn(
+        "enemy",
+        "fire",
+        { x: this.pos.x + t * 116, y: this.pos.y + 30 },
+        polar(center + t * 0.82, (168 + Math.abs(t) * 52) * this.difficulty.bulletSpeed),
+        i % 3 === 0 ? 11 : 8,
+        1
+      );
+    }
   }
 
   private fireButterflyStorm(bullets: BulletSystem) {

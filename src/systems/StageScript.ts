@@ -130,6 +130,44 @@ const stageThreeSpawns: EnemySpawn[] = [
   { time: 82.8, x: 360, y: -40, hp: 82, kind: "astralFamiliar", pattern: "breakableWall", move: "arc" }
 ];
 
+const stageFourSpawns: EnemySpawn[] = [
+  { time: 1.0, x: 120, y: -40, hp: 42, kind: "dragon", pattern: "flameFan", move: "arc" },
+  { time: 2.0, x: 600, y: -40, hp: 42, kind: "dragon", pattern: "flameFan", move: "arc", mirror: true },
+  { time: 3.4, x: 260, y: -40, hp: 44, kind: "dragon", pattern: "flameSnipe", move: "dive" },
+  { time: 4.4, x: 460, y: -40, hp: 44, kind: "dragon", pattern: "fireRain", move: "dive", mirror: true },
+  { time: 6.0, x: 360, y: -40, hp: 64, kind: "crystal", pattern: "laserGate", move: "arc" },
+
+  { time: 15.2, x: 90, y: -40, hp: 44, kind: "dragon", pattern: "fireRain", move: "sway" },
+  { time: 16.1, x: 630, y: -40, hp: 44, kind: "dragon", pattern: "fireRain", move: "sway", mirror: true },
+  { time: 17.5, x: 210, y: -40, hp: 46, kind: "dragon", pattern: "flameSnipe", move: "arc" },
+  { time: 18.4, x: 510, y: -40, hp: 46, kind: "dragon", pattern: "flameSnipe", move: "arc", mirror: true },
+  { time: 20.0, x: 360, y: -40, hp: 66, kind: "astralFamiliar", pattern: "splitFan", move: "dive" },
+
+  { time: 29.6, x: 130, y: -40, hp: 48, kind: "dragon", pattern: "flameFan", move: "arc" },
+  { time: 30.5, x: 590, y: -40, hp: 48, kind: "dragon", pattern: "flameFan", move: "arc", mirror: true },
+  { time: 31.8, x: 260, y: -40, hp: 50, kind: "dragon", pattern: "fireRain", move: "dive" },
+  { time: 32.7, x: 460, y: -40, hp: 50, kind: "dragon", pattern: "fireRain", move: "dive", mirror: true },
+  { time: 34.4, x: 360, y: -40, hp: 72, kind: "crystal", pattern: "laserSlash", move: "sway" },
+
+  { time: 45.8, x: 100, y: -40, hp: 50, kind: "dragon", pattern: "flameSnipe", move: "arc" },
+  { time: 46.6, x: 620, y: -40, hp: 50, kind: "dragon", pattern: "flameSnipe", move: "arc", mirror: true },
+  { time: 47.9, x: 220, y: -40, hp: 52, kind: "dragon", pattern: "flameFan", move: "dive" },
+  { time: 48.7, x: 500, y: -40, hp: 52, kind: "dragon", pattern: "flameFan", move: "dive", mirror: true },
+  { time: 50.4, x: 360, y: -40, hp: 76, kind: "astralFamiliar", pattern: "breakableWall", move: "arc" },
+
+  { time: 61.0, x: 140, y: -40, hp: 54, kind: "dragon", pattern: "fireRain", move: "arc" },
+  { time: 61.8, x: 580, y: -40, hp: 54, kind: "dragon", pattern: "fireRain", move: "arc", mirror: true },
+  { time: 63.0, x: 250, y: -40, hp: 56, kind: "dragon", pattern: "flameSnipe", move: "dive" },
+  { time: 63.8, x: 470, y: -40, hp: 56, kind: "dragon", pattern: "flameSnipe", move: "dive", mirror: true },
+  { time: 65.4, x: 360, y: -40, hp: 82, kind: "crystal", pattern: "laserSnipe", move: "arc" },
+
+  { time: 75.6, x: 110, y: -40, hp: 58, kind: "dragon", pattern: "flameFan", move: "dive" },
+  { time: 76.4, x: 610, y: -40, hp: 58, kind: "dragon", pattern: "fireRain", move: "dive", mirror: true },
+  { time: 77.8, x: 250, y: -40, hp: 60, kind: "dragon", pattern: "flameSnipe", move: "arc" },
+  { time: 78.6, x: 470, y: -40, hp: 60, kind: "dragon", pattern: "flameFan", move: "arc", mirror: true },
+  { time: 80.4, x: 360, y: -40, hp: 88, kind: "astralFamiliar", pattern: "splitFan", move: "arc" }
+];
+
 const stageThreeAsteroidSeeds: AsteroidSpawn[] = [
   { time: 35.0, x: 120, y: -90, vx: 36, vy: 170, radius: 31, variant: 0, spin: 0.55 },
   { time: 35.8, x: 560, y: -100, vx: -42, vy: 178, radius: 34, variant: 1, spin: -0.5 },
@@ -235,6 +273,17 @@ export const stages: StageDefinition[] = [
     bossMusic: "lastBoss",
     spawns: thickenStageSpawns(stageThreeSpawns),
     obstacles: stageThreeAsteroids,
+    bossStartTime: 92.0
+  },
+  {
+    id: 4,
+    title: "Stage 4",
+    subtitle: "Fire storm",
+    warningText: "Salamander rises from the storm",
+    bossKind: "salamander",
+    stageMusic: "stage4",
+    bossMusic: "lastBoss",
+    spawns: stageFourSpawns,
     bossStartTime: 92.0
   }
 ];

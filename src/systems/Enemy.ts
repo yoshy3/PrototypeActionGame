@@ -194,6 +194,37 @@ export class Enemy implements Actor {
       return;
     }
 
+    if (pattern === "flameFan") {
+      const base = Math.atan2(780 - this.pos.y, playerX - this.pos.x);
+      for (let i = -3; i <= 3; i += 1) {
+        bullets.spawn("enemy", "fire", this.pos, polar(base + i * 0.16, (150 + Math.abs(i) * 10) * this.difficulty.bulletSpeed), 9, 1);
+      }
+      return;
+    }
+
+    if (pattern === "flameSnipe") {
+      const angle = Math.atan2(790 - this.pos.y, playerX - this.pos.x);
+      bullets.spawn("enemy", "fire", this.pos, polar(angle, 235 * this.difficulty.bulletSpeed), 11, 1);
+      bullets.spawn("enemy", "fire", { x: this.pos.x - 18, y: this.pos.y + 6 }, polar(angle - 0.12, 172 * this.difficulty.bulletSpeed), 8, 1);
+      bullets.spawn("enemy", "fire", { x: this.pos.x + 18, y: this.pos.y + 6 }, polar(angle + 0.12, 172 * this.difficulty.bulletSpeed), 8, 1);
+      return;
+    }
+
+    if (pattern === "fireRain") {
+      const drift = this.spawn.mirror ? -1 : 1;
+      for (let i = -2; i <= 2; i += 1) {
+        bullets.spawn(
+          "enemy",
+          "fire",
+          { x: this.pos.x + i * 30, y: this.pos.y + 12 + Math.abs(i) * 8 },
+          { x: (i * 12 + drift * 26) * this.difficulty.bulletSpeed, y: (178 + Math.abs(i) * 18) * this.difficulty.bulletSpeed },
+          9,
+          1
+        );
+      }
+      return;
+    }
+
     for (let i = -1; i <= 1; i += 1) {
       bullets.spawn("enemy", "orb", this.pos, polar(Math.PI / 2 + i * 0.22, 155 * this.difficulty.bulletSpeed), 9, 1);
     }
@@ -226,6 +257,12 @@ export class Enemy implements Actor {
     }
     if (pattern === "laserSlash" || pattern === "laserGate" || pattern === "laserSnipe") {
       return 1.18;
+    }
+    if (pattern === "flameFan" || pattern === "fireRain") {
+      return 0.94;
+    }
+    if (pattern === "flameSnipe") {
+      return 0.82;
     }
     if (pattern === "cross" || pattern === "wheel") {
       return 0.85;

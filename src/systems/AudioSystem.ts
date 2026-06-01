@@ -4,6 +4,7 @@ export type MusicTrackId =
   | "stage"
   | "stage2"
   | "stage3"
+  | "stage4"
   | "boss"
   | "lastBoss"
   | "clear"
@@ -14,6 +15,7 @@ const titleMusicUrl = new URL("../assets/audio/title.mp3", import.meta.url).href
 const stageMusicUrl = new URL("../assets/audio/stage.mp3", import.meta.url).href;
 const stage2MusicUrl = new URL("../assets/audio/stage2.mp3", import.meta.url).href;
 const stage3MusicUrl = new URL("../assets/audio/stage3.mp3", import.meta.url).href;
+const stage4MusicUrl = new URL("../assets/audio/stage4.mp3", import.meta.url).href;
 const bossMusicUrl = new URL("../assets/audio/boss.mp3", import.meta.url).href;
 const lastBossMusicUrl = new URL("../assets/audio/last-boss.mp3", import.meta.url).href;
 const clearMusicUrl = new URL("../assets/audio/clear.mp3", import.meta.url).href;
@@ -78,6 +80,11 @@ const musicTracks: Record<MusicTrackId, MusicTrack> = {
   stage3: {
     mode: "asset",
     url: stage3MusicUrl,
+    volume: 0.24
+  },
+  stage4: {
+    mode: "asset",
+    url: stage4MusicUrl,
     volume: 0.24
   },
   boss: {

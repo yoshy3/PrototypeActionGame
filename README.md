@@ -41,17 +41,17 @@ Development builds also expose quick-start debug keys on the title screen for bo
 
 ## Current Scope
 
-- Three-stage vertical bullet-hell run: Moonlit shrine approach, Starlight crystal corridor, and Asteroid spell belt
-- Three boss encounters: Lunar Witch, Starlight Oracle, and Cosmic Sorcerer
-- Five-phase boss spell patterns with petals, stars, split bullets, breakable shells, warning lasers, and asteroid pressure
-- Enemy waves with moth, crystal, and astral familiar sprites using fan, cross, snipe, wheel, laser, split-fan, and breakable-wall patterns
+- Four-stage vertical bullet-hell run: Moonlit shrine approach, Starlight crystal corridor, Asteroid spell belt, and Fire storm
+- Four boss encounters: Lunar Witch, Starlight Oracle, Cosmic Sorcerer, and Salamander
+- Five-phase boss spell patterns with petals, stars, split bullets, breakable shells, warning lasers, asteroid pressure, and firestorm barrages
+- Enemy waves with moth, crystal, astral familiar, and dragon sprites using fan, cross, snipe, wheel, laser, split-fan, breakable-wall, and flame patterns
 - Casual, Normal, and Lunatic difficulty presets that scale enemy HP, boss HP, bullet speed, firing delay, and score rewards
 - Player movement, focused hitbox display, multi-level shots, lives, bombs, invincibility after damage, extends, score, pause, clear, game over, and ending states
 - Graze scoring for near-misses against enemy bullets and lasers
 - Collectible score and bomb items, Lv1-Lv4 shot power, and an upper-screen auto-collect line
 - Per-difficulty local high scores saved in browser storage, with clear and game-over result summaries
 - Stage progress bar, boss HP and phase markers, warning banners, screen shake, bomb flash, floating score text, and clear-result effects
-- Animated sprite sheets for player, enemies, bosses, and asteroids, plus title and ending artwork
+- Animated sprite sheets for player, enemies, bosses, asteroids, and fire projectiles, plus title and ending artwork
 - MP3 background music for title, each stage, boss battles, clear, game over, and ending, with WAV sound effects and a mute toggle
 
 ## Tech Notes

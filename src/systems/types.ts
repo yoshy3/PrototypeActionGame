@@ -1,4 +1,4 @@
-import type { Container, Graphics } from "pixi.js";
+import type { AnimatedSprite, Container, Graphics } from "pixi.js";
 import type { MusicTrackId } from "./AudioSystem";
 
 export type Vector = {
@@ -6,7 +6,7 @@ export type Vector = {
   y: number;
 };
 
-export type BulletKind = "star" | "petal" | "orb" | "splitter" | "shell";
+export type BulletKind = "star" | "petal" | "orb" | "splitter" | "shell" | "fire";
 
 export type BulletOwner = "player" | "enemy";
 
@@ -16,7 +16,7 @@ export type Bullet = {
   id: number;
   owner: BulletOwner;
   kind: BulletKind;
-  sprite: Graphics;
+  sprite: Graphics | AnimatedSprite;
   pos: Vector;
   vel: Vector;
   radius: number;
@@ -64,9 +64,9 @@ export type CollectibleItem = {
   alive: boolean;
 };
 
-export type StageEnemyKind = "moth" | "crystal" | "astralFamiliar";
+export type StageEnemyKind = "moth" | "crystal" | "astralFamiliar" | "dragon";
 
-export type BossKind = "lunarWitch" | "starlightOracle" | "cosmicSorcerer";
+export type BossKind = "lunarWitch" | "starlightOracle" | "cosmicSorcerer" | "salamander";
 
 export type StageEnemyPattern =
   | "drift"
@@ -78,7 +78,10 @@ export type StageEnemyPattern =
   | "laserGate"
   | "laserSnipe"
   | "splitFan"
-  | "breakableWall";
+  | "breakableWall"
+  | "fireRain"
+  | "flameFan"
+  | "flameSnipe";
 
 export type StageEnemyMove = "sway" | "dive" | "arc";
 

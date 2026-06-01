@@ -158,6 +158,7 @@ export class GameScene {
   private clearFxTimer = 0;
   private pressPromptBlinkTime = 0;
   private bossAsteroidTimer = 0;
+  private firestormTimer = 0;
   private clearWasRecord = false;
   private announcedBoss = false;
   private playedClear = false;
@@ -269,6 +270,8 @@ export class GameScene {
       this.start({ stageDebug: 2 });
     } else if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("c")) {
       this.start({ stageDebug: 3 });
+    } else if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("f")) {
+      this.start({ stageDebug: 4 });
     } else if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("e")) {
       this.beginEnding();
     } else if (this.state === "title" && this.input.wasPressed("z", " ", "enter")) {
@@ -281,6 +284,8 @@ export class GameScene {
       this.start({ stageDebug: 2, bossDebug: true });
     } else if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("g")) {
       this.start({ stageDebug: 3, bossDebug: true });
+    } else if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("h")) {
+      this.start({ stageDebug: 4, bossDebug: true });
     } else if (
       (this.state === "gameover" ||
         (this.state === "clear" && this.clearInputTimer <= 0) ||
@@ -353,6 +358,7 @@ export class GameScene {
     }
     this.spawnEnemies();
     this.spawnAsteroids();
+    this.updateFirestorm(dt);
 
     for (const enemy of this.enemies) {
       if (!enemy.alive) {
@@ -450,6 +456,7 @@ export class GameScene {
     this.endingInputTimer = 0;
     this.stageClearTimer = 0;
     this.bossAsteroidTimer = 0;
+    this.firestormTimer = 0;
     this.flashTimer = 0;
     this.bannerTimer = 0;
     this.announcedBoss = bossDebug;
@@ -511,7 +518,7 @@ export class GameScene {
     this.hideEnding();
     this.overlay.position.set(360, 560);
     this.overlay.text = `Difficulty: ${this.difficulty.label}\nVersion ${APP_VERSION}\n\nLeft/Right or 1-3 to change${
-      DEV_BOSS_START_ENABLED ? "\nB: Stage 1 boss   V/C: Stage 2/3\nN/G: Stage 2/3 boss   E: Ending" : ""
+      DEV_BOSS_START_ENABLED ? "\nB: Stage 1 boss   V/C/F: Stage 2/3/4\nN/G/H: Stage 2/3/4 boss   E: Ending" : ""
     }`;
     this.setOverlayPrompt("Z / SPACE to start", this.getOverlayBottom() + 44);
     this.hud.text = `Move: Arrow/WASD/Pad   Shot: Z/A   Bomb: X/X\nFocus: Shift/RB   M: ${
@@ -635,6 +642,31 @@ export class GameScene {
     }
 
     this.bossAsteroidTimer = Math.max(0.48, [1.25, 1.0, 0.82, 0.68, 0.56][phase] ?? 0.7) * this.difficulty.fireDelay;
+  }
+
+  private updateFirestorm(dt: number) {
+    if (this.currentStage.id !== 4) {
+      this.firestormTimer = 0;
+      return;
+    }
+
+    this.firestormTimer -= dt;
+    const interval = (this.boss?.alive ? 0.095 : 0.13) * this.difficulty.fireDelay;
+    while (this.firestormTimer <= 0) {
+      const lane = Math.floor(Math.random() * 12);
+      const x = 36 + lane * 60 + (Math.random() - 0.5) * 42;
+      const speed = (190 + Math.random() * 95 + (this.boss?.alive ? 35 : 0)) * this.difficulty.bulletSpeed;
+      const sway = Math.sin(this.time * 1.9 + lane) * 36 + (Math.random() - 0.5) * 34;
+      this.bullets.spawn(
+        "enemy",
+        "fire",
+        { x, y: -36 - Math.random() * 46 },
+        { x: sway * this.difficulty.bulletSpeed, y: speed },
+        8 + Math.random() * 4,
+        1
+      );
+      this.firestormTimer += interval;
+    }
   }
 
   private addAsteroid(asteroid: Asteroid) {
@@ -1149,6 +1181,7 @@ export class GameScene {
     this.spawnIndex = 0;
     this.asteroidIndex = 0;
     this.bossAsteroidTimer = 0;
+    this.firestormTimer = 0;
     this.clearTimer = 0;
     this.announcedBoss = false;
     this.bossPhase = 0;

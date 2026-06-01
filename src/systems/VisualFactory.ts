@@ -23,6 +23,11 @@ const characterSheets = {
     displaySize: 128,
     url: new URL("../assets/characters/boss-cosmic-sorcerer-sheet.png", import.meta.url).href
   },
+  bossSalamander: {
+    cellSize: 256,
+    displaySize: 128,
+    url: new URL("../assets/characters/boss-salamander-sheet.png", import.meta.url).href
+  },
   enemy: { cellSize: 96, displaySize: 48, url: new URL("../assets/characters/enemy-moth-sheet.png", import.meta.url).href },
   enemyCrystal: {
     cellSize: 96,
@@ -33,6 +38,16 @@ const characterSheets = {
     cellSize: 96,
     displaySize: 48,
     url: new URL("../assets/characters/enemy-astral-familiar-sheet.png", import.meta.url).href
+  },
+  enemyDragon: {
+    cellSize: 96,
+    displaySize: 54,
+    url: new URL("../assets/characters/enemy-dragon-sheet.png", import.meta.url).href
+  },
+  fire: {
+    cellSize: 128,
+    displaySize: 28,
+    url: new URL("../assets/characters/fire-sheet.png", import.meta.url).href
   },
   asteroid: {
     cellSize: 128,
@@ -113,21 +128,42 @@ export class CharacterVisual extends Container {
 export const createPlayerVisual = () => createCharacterVisual("player");
 
 export const createEnemyVisual = (kind: StageEnemyKind = "moth") =>
-  createCharacterVisual(kind === "crystal" ? "enemyCrystal" : kind === "astralFamiliar" ? "enemyAstralFamiliar" : "enemy");
+  createCharacterVisual(
+    kind === "dragon"
+      ? "enemyDragon"
+      : kind === "crystal"
+        ? "enemyCrystal"
+        : kind === "astralFamiliar"
+          ? "enemyAstralFamiliar"
+          : "enemy"
+  );
 
 export const createBossVisual = (kind: BossKind = "lunarWitch") => {
   const container = new Container();
   const character = createCharacterVisual(
-    kind === "cosmicSorcerer" ? "bossCosmicSorcerer" : kind === "starlightOracle" ? "bossStarlightOracle" : "boss"
+    kind === "salamander"
+      ? "bossSalamander"
+      : kind === "cosmicSorcerer"
+        ? "bossCosmicSorcerer"
+        : kind === "starlightOracle"
+          ? "bossStarlightOracle"
+          : "boss"
   );
   character.name = "character";
 
   const aura = new Graphics();
-  aura.circle(0, 0, 64).stroke({ color: kind === "lunarWitch" ? 0xffd7fb : 0xfff4a8, width: 2, alpha: 0.38 });
-  aura.circle(0, 0, 48).stroke({ color: kind === "cosmicSorcerer" ? 0x74c9ff : 0x92fff1, width: 2, alpha: 0.32 });
+  aura.circle(0, 0, 64).stroke({ color: kind === "salamander" ? 0xff7a1c : kind === "lunarWitch" ? 0xffd7fb : 0xfff4a8, width: 2, alpha: 0.38 });
+  aura.circle(0, 0, 48).stroke({ color: kind === "salamander" ? 0xfff0a0 : kind === "cosmicSorcerer" ? 0x74c9ff : 0x92fff1, width: 2, alpha: 0.32 });
 
   const label = new Text({
-    text: kind === "cosmicSorcerer" ? "COSMIC SORCERER" : kind === "starlightOracle" ? "STARLIGHT ORACLE" : "LUNAR WITCH",
+    text:
+      kind === "salamander"
+        ? "SALAMANDER"
+        : kind === "cosmicSorcerer"
+          ? "COSMIC SORCERER"
+          : kind === "starlightOracle"
+            ? "STARLIGHT ORACLE"
+            : "LUNAR WITCH",
     style: { fill: 0xffe5f6, fontSize: 13, letterSpacing: 0 }
   });
   label.anchor.set(0.5);
@@ -188,6 +224,21 @@ export const createHitMark = (radius: number) => {
 };
 
 export const createBulletVisual = (owner: BulletOwner, kind: BulletKind, radius: number) => {
+  if (owner === "enemy" && kind === "fire") {
+    const frames = loadedFrames.get("fire");
+    if (!frames) {
+      throw new Error("Character assets must be loaded before creating fire visual.");
+    }
+
+    const sprite = new AnimatedSprite(frames.idle);
+    sprite.anchor.set(0.5);
+    sprite.animationSpeed = 0.18;
+    sprite.width = radius * 2.9;
+    sprite.height = radius * 2.9;
+    sprite.play();
+    return sprite;
+  }
+
   const g = new Graphics();
 
   if (owner === "player") {
