@@ -364,7 +364,7 @@ export class GameScene {
       if (!enemy.alive) {
         continue;
       }
-      enemy.update(dt, this.bullets, this.player.pos.x);
+      enemy.update(dt, this.bullets, this.player.pos);
       if (!enemy.alive) {
         continue;
       }
@@ -397,7 +397,7 @@ export class GameScene {
       this.boss.container.scale.set(1 + Math.max(0, this.boss.container.scale.x - 1 - dt * 4));
     }
 
-    this.bullets.update(dt, 720, 960);
+    this.bullets.update(dt, 720, 960, this.player.pos);
     this.drawCollectLine();
     this.items.update(dt, this.player.pos, ITEM_COLLECT_RADIUS, this.player.pos.y < AUTO_COLLECT_LINE_Y, (item) =>
       this.collectItem(item.kind)
@@ -886,7 +886,7 @@ export class GameScene {
 
   private updateClearState(dt: number) {
     this.clearInputTimer = Math.max(0, this.clearInputTimer - dt);
-    this.bullets.update(dt, 720, 960);
+    this.bullets.update(dt, 720, 960, this.player.pos);
     this.drawCollectLine();
     this.items.update(dt, this.player.pos, ITEM_COLLECT_RADIUS, true, (item) => this.collectItem(item.kind));
 

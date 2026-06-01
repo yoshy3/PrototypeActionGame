@@ -270,7 +270,7 @@ export const stages: StageDefinition[] = [
     warningText: "Cosmic Sorcerer opens the belt",
     bossKind: "cosmicSorcerer",
     stageMusic: "stage3",
-    bossMusic: "lastBoss",
+    bossMusic: "boss",
     spawns: thickenStageSpawns(stageThreeSpawns),
     obstacles: stageThreeAsteroids,
     bossStartTime: 92.0

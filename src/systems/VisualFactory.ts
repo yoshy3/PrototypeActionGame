@@ -41,7 +41,7 @@ const characterSheets = {
   },
   enemyDragon: {
     cellSize: 96,
-    displaySize: 54,
+    displaySize: 88,
     url: new URL("../assets/characters/enemy-dragon-sheet.png", import.meta.url).href
   },
   fire: {
@@ -224,17 +224,17 @@ export const createHitMark = (radius: number) => {
 };
 
 export const createBulletVisual = (owner: BulletOwner, kind: BulletKind, radius: number) => {
-  if (owner === "enemy" && kind === "fire") {
+  if (owner === "enemy" && (kind === "fire" || kind === "homingFire")) {
     const frames = loadedFrames.get("fire");
     if (!frames) {
       throw new Error("Character assets must be loaded before creating fire visual.");
     }
 
-    const sprite = new AnimatedSprite(frames.idle);
+    const sprite = new AnimatedSprite(kind === "homingFire" ? frames.hit : frames.idle);
     sprite.anchor.set(0.5);
     sprite.animationSpeed = 0.18;
-    sprite.width = radius * 2.9;
-    sprite.height = radius * 2.9;
+    sprite.width = radius * 12.8;
+    sprite.height = radius * 12.8;
     sprite.play();
     return sprite;
   }

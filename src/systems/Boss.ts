@@ -6,6 +6,10 @@ import type { Actor, BossKind, Vector } from "./types";
 import { CharacterVisual, createBossVisual } from "./VisualFactory";
 
 const STARLIGHT_LASER_MIN_INTERVAL = 1.1;
+const SALAMANDER_LASER_MIN_INTERVAL = 1.1;
+const SALAMANDER_FIRE_LARGE_RADIUS = 10;
+const SALAMANDER_FIRE_MEDIUM_RADIUS = SALAMANDER_FIRE_LARGE_RADIUS / 2;
+const SALAMANDER_FIRE_SMALL_RADIUS = SALAMANDER_FIRE_LARGE_RADIUS / 3;
 
 export class Boss implements Actor {
   readonly container = new Container();
@@ -22,6 +26,7 @@ export class Boss implements Actor {
   private fireLockTimer = 0;
   private breakableVolley = 0;
   private starlightLaserCooldown = 0;
+  private salamanderLaserCooldown = 0;
   private phase = 0;
   private readonly body: CharacterVisual;
   private target: Vector = { x: 360, y: 820 };
@@ -49,6 +54,7 @@ export class Boss implements Actor {
     this.age += dt;
     this.fireLockTimer = Math.max(0, this.fireLockTimer - dt);
     this.starlightLaserCooldown = Math.max(0, this.starlightLaserCooldown - dt);
+    this.salamanderLaserCooldown = Math.max(0, this.salamanderLaserCooldown - dt);
     this.target = { ...player };
     const previousX = this.pos.x;
     if (!this.entered) {
@@ -414,7 +420,11 @@ export class Boss implements Actor {
       this.fireFlameWheel(bullets, 8, 186);
       this.fireTimer = 0.16 * this.difficulty.fireDelay;
     } else if (this.phase === 2) {
-      this.fireMagmaGate(bullets);
+      if (this.tryStartSalamanderLaserVolley()) {
+        this.fireMagmaGate(bullets);
+      } else {
+        this.fireFlameFan(bullets, 7);
+      }
       this.fireTimer = 0.38 * this.difficulty.fireDelay;
     } else if (this.phase === 3) {
       this.fireCinderRain(bullets, 10, 0.58);
@@ -424,7 +434,11 @@ export class Boss implements Actor {
       if (Math.floor(this.age * 5) % 2 === 0) {
         this.fireFlameWheel(bullets, 10, 210);
       } else {
-        this.fireMagmaGate(bullets);
+        if (this.tryStartSalamanderLaserVolley()) {
+          this.fireMagmaGate(bullets);
+        } else {
+          this.fireCinderRain(bullets, 8, 0.52);
+        }
         this.fireFlameFan(bullets, 11);
       }
       this.fireTimer = 0.22 * this.difficulty.fireDelay;
@@ -441,10 +455,19 @@ export class Boss implements Actor {
         "fire",
         { x: this.pos.x + t * 150, y: this.pos.y + 24 + Math.abs(t) * 30 },
         polar(center + t * spread + wave, (150 + Math.abs(t) * 72) * this.difficulty.bulletSpeed),
-        9,
+        i % 3 === 0 ? SALAMANDER_FIRE_LARGE_RADIUS : SALAMANDER_FIRE_MEDIUM_RADIUS,
         1
       );
     }
+  }
+
+  private tryStartSalamanderLaserVolley() {
+    if (this.salamanderLaserCooldown > 0) {
+      return false;
+    }
+
+    this.salamanderLaserCooldown = Math.max(SALAMANDER_LASER_MIN_INTERVAL, 1.2 * this.difficulty.fireDelay);
+    return true;
   }
 
   private fireFlameWheel(bullets: BulletSystem, arms: number, speed: number) {
@@ -455,7 +478,7 @@ export class Boss implements Actor {
         "fire",
         { x: this.pos.x + Math.cos(angle) * 34, y: this.pos.y + 18 + Math.sin(angle) * 18 },
         polar(angle + Math.PI / 2, speed * this.difficulty.bulletSpeed),
-        arm % 2 === 0 ? 10 : 8,
+        arm % 2 === 0 ? SALAMANDER_FIRE_MEDIUM_RADIUS : SALAMANDER_FIRE_SMALL_RADIUS,
         1
       );
     }
@@ -491,7 +514,7 @@ export class Boss implements Actor {
         "fire",
         { x: this.pos.x + t * 116, y: this.pos.y + 30 },
         polar(center + t * 0.82, (168 + Math.abs(t) * 52) * this.difficulty.bulletSpeed),
-        i % 3 === 0 ? 11 : 8,
+        i % 3 === 0 ? SALAMANDER_FIRE_LARGE_RADIUS : i % 2 === 0 ? SALAMANDER_FIRE_MEDIUM_RADIUS : SALAMANDER_FIRE_SMALL_RADIUS,
         1
       );
     }

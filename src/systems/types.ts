@@ -6,7 +6,7 @@ export type Vector = {
   y: number;
 };
 
-export type BulletKind = "star" | "petal" | "orb" | "splitter" | "shell" | "fire";
+export type BulletKind = "star" | "petal" | "orb" | "splitter" | "shell" | "fire" | "homingFire";
 
 export type BulletOwner = "player" | "enemy";
 
@@ -29,6 +29,9 @@ export type Bullet = {
   splitCount?: number;
   splitSpeed?: number;
   splitKind?: BulletKind;
+  homingDelay?: number;
+  homingTime?: number;
+  homingTurnRate?: number;
   alive: boolean;
 };
 

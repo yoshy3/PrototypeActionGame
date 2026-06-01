@@ -8,6 +8,9 @@ type BulletSpawnOptions = {
   splitCount?: number;
   splitSpeed?: number;
   splitKind?: BulletKind;
+  homingDelay?: number;
+  homingTime?: number;
+  homingTurnRate?: number;
 };
 
 export class BulletSystem {
@@ -19,6 +22,9 @@ export class BulletSystem {
   spawn(owner: BulletOwner, kind: BulletKind, pos: Vector, vel: Vector, radius: number, damage: number, options: BulletSpawnOptions = {}) {
     const sprite = createBulletVisual(owner, kind, radius);
     sprite.position.set(pos.x, pos.y);
+    if (this.isFireKind(kind)) {
+      sprite.rotation = this.getTravelRotation(vel);
+    }
     this.container.addChild(sprite);
 
     this.bullets.push({
@@ -31,13 +37,16 @@ export class BulletSystem {
       radius,
       damage,
       age: 0,
-      spin: owner === "player" ? 0 : (Math.random() - 0.5) * 4,
+      spin: owner === "player" || this.isFireKind(kind) ? 0 : (Math.random() - 0.5) * 4,
       grazed: false,
       hp: options.hp,
       splitAt: options.splitAt,
       splitCount: options.splitCount,
       splitSpeed: options.splitSpeed,
       splitKind: options.splitKind,
+      homingDelay: options.homingDelay,
+      homingTime: options.homingTime,
+      homingTurnRate: options.homingTurnRate,
       alive: true
     });
   }
@@ -82,7 +91,7 @@ export class BulletSystem {
     });
   }
 
-  update(dt: number, width: number, height: number) {
+  update(dt: number, width: number, height: number, target?: Vector) {
     for (const bullet of this.bullets) {
       if (!bullet.alive) {
         continue;
@@ -93,11 +102,23 @@ export class BulletSystem {
         this.split(bullet);
         continue;
       }
+      const homingDelay = bullet.homingDelay ?? 0;
+      if (
+        target &&
+        bullet.owner === "enemy" &&
+        bullet.homingTime !== undefined &&
+        bullet.age >= homingDelay &&
+        bullet.age <= homingDelay + bullet.homingTime
+      ) {
+        this.homeToward(bullet, target, dt);
+      }
       bullet.pos.x += bullet.vel.x * dt;
       bullet.pos.y += bullet.vel.y * dt;
       bullet.sprite.position.set(bullet.pos.x, bullet.pos.y);
-      bullet.sprite.rotation += bullet.spin * dt;
-      bullet.sprite.scale.set(1 + Math.max(0, bullet.sprite.scale.x - 1 - dt * 5));
+      bullet.sprite.rotation = this.isFireKind(bullet.kind) ? this.getTravelRotation(bullet.vel) : bullet.sprite.rotation + bullet.spin * dt;
+      if (!this.isFireKind(bullet.kind)) {
+        bullet.sprite.scale.set(1 + Math.max(0, bullet.sprite.scale.x - 1 - dt * 5));
+      }
 
       if (
         bullet.pos.x < -80 ||
@@ -230,6 +251,29 @@ export class BulletSystem {
         bullet.damage
       );
     }
+  }
+
+  private getTravelRotation(vel: Vector) {
+    return Math.atan2(vel.y, vel.x) - Math.PI / 2;
+  }
+
+  private isFireKind(kind: BulletKind) {
+    return kind === "fire" || kind === "homingFire";
+  }
+
+  private homeToward(bullet: Bullet, target: Vector, dt: number) {
+    const speed = Math.hypot(bullet.vel.x, bullet.vel.y);
+    if (speed <= 0) {
+      return;
+    }
+
+    const current = Math.atan2(bullet.vel.y, bullet.vel.x);
+    const desired = Math.atan2(target.y - bullet.pos.y, target.x - bullet.pos.x);
+    const maxTurn = (bullet.homingTurnRate ?? 2.6) * dt;
+    const delta = Math.atan2(Math.sin(desired - current), Math.cos(desired - current));
+    const next = current + Math.max(-maxTurn, Math.min(maxTurn, delta));
+    bullet.vel.x = Math.cos(next) * speed;
+    bullet.vel.y = Math.sin(next) * speed;
   }
 
 }

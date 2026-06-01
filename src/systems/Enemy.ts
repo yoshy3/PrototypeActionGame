@@ -7,16 +7,25 @@ import { CharacterVisual, createEnemyVisual } from "./VisualFactory";
 
 let nextEnemyId = 1;
 
+type QueuedFire = {
+  timer: number;
+  origin: { x: number; y: number };
+  angle: number;
+  speed: number;
+  radius: number;
+};
+
 export class Enemy implements Actor {
   readonly id = nextEnemyId++;
   readonly container = new Container();
   readonly pos = { x: 0, y: 0 };
-  readonly radius = 18;
+  readonly radius: number;
   hp: number;
   alive = true;
   private age = 0;
   private fireTimer = 0.5;
   private fireLockTimer = 0;
+  private readonly queuedFires: QueuedFire[] = [];
   private disposed = false;
   private readonly body: CharacterVisual;
 
@@ -25,6 +34,7 @@ export class Enemy implements Actor {
     private readonly difficulty: DifficultyConfig
   ) {
     this.hp = Math.ceil(spawn.hp * difficulty.enemyHp);
+    this.radius = spawn.kind === "dragon" ? 28 : 18;
     this.pos.x = spawn.x;
     this.pos.y = spawn.y;
 
@@ -33,7 +43,7 @@ export class Enemy implements Actor {
     this.container.position.set(this.pos.x, this.pos.y);
   }
 
-  update(dt: number, bullets: BulletSystem, playerX: number) {
+  update(dt: number, bullets: BulletSystem, player: { x: number; y: number }) {
     if (!this.alive) {
       return;
     }
@@ -48,11 +58,12 @@ export class Enemy implements Actor {
     this.container.position.set(this.pos.x, this.pos.y);
     this.container.rotation = Math.sin(this.age * 3) * 0.08;
     this.body.update(dt, "idle");
+    this.updateQueuedFires(dt, bullets);
 
     this.fireTimer -= dt;
     if (this.fireTimer <= 0) {
       this.fireTimer = this.getFireDelay(this.spawn.pattern) * this.difficulty.fireDelay;
-      this.fire(bullets, playerX, this.spawn.pattern);
+      this.fire(bullets, player, this.spawn.pattern);
     }
 
     if (this.pos.y > 980) {
@@ -87,9 +98,9 @@ export class Enemy implements Actor {
     this.container.destroy();
   }
 
-  private fire(bullets: BulletSystem, playerX: number, pattern: StageEnemyPattern) {
+  private fire(bullets: BulletSystem, player: { x: number; y: number }, pattern: StageEnemyPattern) {
     if (pattern === "fan") {
-      const base = Math.atan2(760 - this.pos.y, playerX - this.pos.x);
+      const base = Math.atan2(760 - this.pos.y, player.x - this.pos.x);
       for (let i = -2; i <= 2; i += 1) {
         bullets.spawn("enemy", "petal", this.pos, polar(base + i * 0.18, 175 * this.difficulty.bulletSpeed), 8, 1);
       }
@@ -111,7 +122,7 @@ export class Enemy implements Actor {
     }
 
     if (pattern === "snipe") {
-      const angle = Math.atan2(780 - this.pos.y, playerX - this.pos.x);
+      const angle = Math.atan2(780 - this.pos.y, player.x - this.pos.x);
       bullets.spawn("enemy", "orb", this.pos, polar(angle, 210 * this.difficulty.bulletSpeed), 9, 1);
       bullets.spawn("enemy", "petal", this.pos, polar(angle - 0.16, 165 * this.difficulty.bulletSpeed), 7, 1);
       bullets.spawn("enemy", "petal", this.pos, polar(angle + 0.16, 165 * this.difficulty.bulletSpeed), 7, 1);
@@ -127,7 +138,7 @@ export class Enemy implements Actor {
     }
 
     if (pattern === "splitFan") {
-      const base = Math.atan2(760 - this.pos.y, playerX - this.pos.x);
+      const base = Math.atan2(760 - this.pos.y, player.x - this.pos.x);
       for (let i = -1; i <= 1; i += 1) {
         bullets.spawn(
           "enemy",
@@ -169,7 +180,7 @@ export class Enemy implements Actor {
     }
 
     if (pattern === "laserSlash") {
-      const angle = Math.atan2(800 - this.pos.y, playerX - this.pos.x);
+      const angle = Math.atan2(800 - this.pos.y, player.x - this.pos.x);
       bullets.spawnLaser("enemy", { x: this.pos.x, y: this.pos.y + 8 }, angle, 270, 5, 0.72, 0.7, 1, 300 * this.difficulty.bulletSpeed, 0.52, this.id);
       this.fireLockTimer = Math.max(this.fireLockTimer, 0.92);
       bullets.spawn("enemy", "petal", this.pos, polar(Math.PI / 2, 120 * this.difficulty.bulletSpeed), 7, 1);
@@ -178,7 +189,7 @@ export class Enemy implements Actor {
 
     if (pattern === "laserGate") {
       const targetY = 760 + Math.sin(this.age * 3) * 70;
-      const angle = Math.atan2(targetY - this.pos.y, playerX - this.pos.x);
+      const angle = Math.atan2(targetY - this.pos.y, player.x - this.pos.x);
       bullets.spawnLaser("enemy", { x: this.pos.x, y: this.pos.y + 8 }, angle, 310, 5, 0.74, 0.7, 1, 310 * this.difficulty.bulletSpeed, 0.54, this.id);
       this.fireLockTimer = Math.max(this.fireLockTimer, 0.96);
       bullets.spawn("enemy", "star", this.pos, polar(angle - 0.22, 140 * this.difficulty.bulletSpeed), 7, 1);
@@ -187,7 +198,7 @@ export class Enemy implements Actor {
     }
 
     if (pattern === "laserSnipe") {
-      const angle = Math.atan2(780 - this.pos.y, playerX - this.pos.x);
+      const angle = Math.atan2(780 - this.pos.y, player.x - this.pos.x);
       bullets.spawnLaser("enemy", this.pos, angle, 330, 6, 0.78, 0.7, 1, 320 * this.difficulty.bulletSpeed, 0.54, this.id);
       this.fireLockTimer = Math.max(this.fireLockTimer, 0.94);
       bullets.spawn("enemy", "orb", this.pos, polar(angle, 170 * this.difficulty.bulletSpeed), 8, 1);
@@ -195,38 +206,104 @@ export class Enemy implements Actor {
     }
 
     if (pattern === "flameFan") {
-      const base = Math.atan2(780 - this.pos.y, playerX - this.pos.x);
-      for (let i = -3; i <= 3; i += 1) {
-        bullets.spawn("enemy", "fire", this.pos, polar(base + i * 0.16, (150 + Math.abs(i) * 10) * this.difficulty.bulletSpeed), 9, 1);
-      }
+      this.queueDelayedFlameFans(player.x);
       return;
     }
 
     if (pattern === "flameSnipe") {
-      const angle = Math.atan2(790 - this.pos.y, playerX - this.pos.x);
-      bullets.spawn("enemy", "fire", this.pos, polar(angle, 235 * this.difficulty.bulletSpeed), 11, 1);
-      bullets.spawn("enemy", "fire", { x: this.pos.x - 18, y: this.pos.y + 6 }, polar(angle - 0.12, 172 * this.difficulty.bulletSpeed), 8, 1);
-      bullets.spawn("enemy", "fire", { x: this.pos.x + 18, y: this.pos.y + 6 }, polar(angle + 0.12, 172 * this.difficulty.bulletSpeed), 8, 1);
+      this.fireHomingFlames(bullets, player);
       return;
     }
 
     if (pattern === "fireRain") {
-      const drift = this.spawn.mirror ? -1 : 1;
-      for (let i = -2; i <= 2; i += 1) {
-        bullets.spawn(
-          "enemy",
-          "fire",
-          { x: this.pos.x + i * 30, y: this.pos.y + 12 + Math.abs(i) * 8 },
-          { x: (i * 12 + drift * 26) * this.difficulty.bulletSpeed, y: (178 + Math.abs(i) * 18) * this.difficulty.bulletSpeed },
-          9,
-          1
-        );
-      }
+      this.fireCrossingFlameStream(bullets);
       return;
     }
 
     for (let i = -1; i <= 1; i += 1) {
       bullets.spawn("enemy", "orb", this.pos, polar(Math.PI / 2 + i * 0.22, 155 * this.difficulty.bulletSpeed), 9, 1);
+    }
+  }
+
+  private updateQueuedFires(dt: number, bullets: BulletSystem) {
+    for (let index = this.queuedFires.length - 1; index >= 0; index -= 1) {
+      const queued = this.queuedFires[index];
+      queued.timer -= dt;
+      if (queued.timer > 0) {
+        continue;
+      }
+
+      bullets.spawn("enemy", "fire", queued.origin, polar(queued.angle, queued.speed * this.difficulty.bulletSpeed), queued.radius, 1);
+      this.queuedFires.splice(index, 1);
+    }
+  }
+
+  private queueDelayedFlameFans(playerX: number) {
+    const base = Math.atan2(780 - this.pos.y, playerX - this.pos.x);
+    const count = 9;
+    const spread = 1.04;
+    const direction = this.spawn.mirror ? -1 : 1;
+    for (let i = 0; i < count; i += 1) {
+      const ordered = direction > 0 ? i : count - 1 - i;
+      const t = ordered / (count - 1) - 0.5;
+      this.queuedFires.push({
+        timer: i * 0.075,
+        origin: { x: this.pos.x, y: this.pos.y + 4 },
+        angle: base + t * spread,
+        speed: 168 + Math.abs(t) * 24,
+        radius: i % 3 === 0 ? 3.3 : 2.8
+      });
+    }
+  }
+
+  private fireHomingFlames(bullets: BulletSystem, player: { x: number; y: number }) {
+    const base = Math.atan2(player.y - this.pos.y, player.x - this.pos.x);
+    for (let i = -1; i <= 1; i += 1) {
+      const angle = base + i * 0.28;
+      bullets.spawn(
+        "enemy",
+        "homingFire",
+        { x: this.pos.x + i * 20, y: this.pos.y + 8 },
+        polar(angle, (120 + Math.abs(i) * 16) * this.difficulty.bulletSpeed),
+        i === 0 ? 3.6 : 3,
+        1,
+        { homingDelay: 3.0, homingTime: 3.0, homingTurnRate: 2.35 }
+      );
+    }
+    for (let i = -1; i <= 1; i += 2) {
+      bullets.spawn(
+        "enemy",
+        "fire",
+        { x: this.pos.x + i * 28, y: this.pos.y + 12 },
+        polar(base + i * 0.52, 168 * this.difficulty.bulletSpeed),
+        2.7,
+        1
+      );
+    }
+  }
+
+  private fireCrossingFlameStream(bullets: BulletSystem) {
+    const drift = this.spawn.mirror ? -1 : 1;
+    for (let i = -2; i <= 2; i += 1) {
+      const sideSweep = i % 2 === 0 ? drift : -drift;
+      bullets.spawn(
+        "enemy",
+        "fire",
+        { x: this.pos.x + i * 26, y: this.pos.y + 10 + Math.abs(i) * 7 },
+        { x: (i * 10 + sideSweep * 48) * this.difficulty.bulletSpeed, y: (154 + Math.abs(i) * 22) * this.difficulty.bulletSpeed },
+        i === 0 ? 3.4 : 2.9,
+        1
+      );
+    }
+    for (let i = -1; i <= 1; i += 1) {
+      bullets.spawn(
+        "enemy",
+        "fire",
+        { x: this.pos.x + i * 34, y: this.pos.y + 24 },
+        polar(Math.PI / 2 + drift * (0.36 + i * 0.1), 116 * this.difficulty.bulletSpeed),
+        2.6,
+        1
+      );
     }
   }
 
