@@ -1,6 +1,7 @@
 # Moonlit Spell Barrage
 
 A browser-based 2D bullet-hell shooting game prototype built with TypeScript, Vite, and PixiJS.
+Its stage flow, dense spell patterns, grazing, and boss-focused structure are inspired by Touhou Project.
 
 ![Moonlit Spell Barrage title art](src/assets/images/title.png)
 
@@ -43,15 +44,15 @@ Development builds also expose quick-start debug keys on the title screen for bo
 
 - Four-stage vertical bullet-hell run: Moonlit shrine approach, Starlight crystal corridor, Asteroid spell belt, and Fire storm
 - Four boss encounters: Lunar Witch, Starlight Oracle, Cosmic Sorcerer, and Salamander
-- Five-phase boss spell patterns with petals, stars, split bullets, breakable shells, warning lasers, asteroid pressure, and firestorm barrages
-- Enemy waves with moth, crystal, astral familiar, and dragon sprites using fan, cross, snipe, wheel, laser, split-fan, breakable-wall, and flame patterns
+- Five-phase boss spell patterns with petals, stars, split bullets, breakable shells, warning lasers, asteroid pressure, magma gates, and firestorm barrages
+- Enemy waves with moth, crystal, astral familiar, dragon, and fire familiar sprites using fan, cross, snipe, wheel, laser, split-fan, breakable-wall, flame, and homing-flame patterns
 - Casual, Normal, and Lunatic difficulty presets that scale enemy HP, boss HP, bullet speed, firing delay, and score rewards
-- Player movement, focused hitbox display, multi-level shots, lives, bombs, invincibility after damage, extends, score, pause, clear, game over, and ending states
+- Player movement, focused hitbox display, multi-level shots, lives, bombs, invincibility after damage, extends, score, pause, clear, game over, ending, and credit roll states
 - Graze scoring for near-misses against enemy bullets and lasers
 - Collectible score and bomb items, Lv1-Lv4 shot power, and an upper-screen auto-collect line
 - Per-difficulty local high scores saved in browser storage, with clear and game-over result summaries
 - Stage progress bar, boss HP and phase markers, warning banners, screen shake, bomb flash, floating score text, and clear-result effects
-- Animated sprite sheets for player, enemies, bosses, asteroids, and fire projectiles, plus title and ending artwork
+- Animated sprite sheets for player, enemies, bosses, asteroids, fire familiars, and fire projectiles, plus title and ending artwork
 - MP3 background music for title, each stage, boss battles, clear, game over, and ending, with WAV sound effects and a mute toggle
 
 ## Tech Notes
