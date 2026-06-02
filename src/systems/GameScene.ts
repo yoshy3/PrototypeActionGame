@@ -645,7 +645,7 @@ export class GameScene {
   }
 
   private updateFirestorm(dt: number) {
-    if (this.currentStage.id !== 4) {
+    if (this.currentStage.id !== 4 || (this.boss !== null && !this.boss.alive)) {
       this.firestormTimer = 0;
       return;
     }

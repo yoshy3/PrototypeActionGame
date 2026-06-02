@@ -38,7 +38,7 @@ export class Enemy implements Actor {
     this.pos.x = spawn.x;
     this.pos.y = spawn.y;
 
-    this.body = createEnemyVisual(spawn.kind);
+    this.body = createEnemyVisual(spawn.kind, spawn.pattern);
     this.container.addChild(this.body);
     this.container.position.set(this.pos.x, this.pos.y);
   }

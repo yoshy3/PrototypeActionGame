@@ -7,6 +7,7 @@ import { CharacterVisual, createBossVisual } from "./VisualFactory";
 
 const STARLIGHT_LASER_MIN_INTERVAL = 1.1;
 const SALAMANDER_LASER_MIN_INTERVAL = 1.1;
+const SALAMANDER_FIRE_INTERVAL_SCALE = 1.5;
 const SALAMANDER_FIRE_LARGE_RADIUS = 10;
 const SALAMANDER_FIRE_MEDIUM_RADIUS = SALAMANDER_FIRE_LARGE_RADIUS / 2;
 const SALAMANDER_FIRE_SMALL_RADIUS = SALAMANDER_FIRE_LARGE_RADIUS / 3;
@@ -415,21 +416,21 @@ export class Boss implements Actor {
   private fireSalamanderSpell(bullets: BulletSystem) {
     if (this.phase === 0) {
       this.fireCinderRain(bullets, 7, 0.42);
-      this.fireTimer = 0.34 * this.difficulty.fireDelay;
+      this.fireTimer = this.salamanderFireInterval(0.34);
     } else if (this.phase === 1) {
       this.fireFlameWheel(bullets, 8, 186);
-      this.fireTimer = 0.16 * this.difficulty.fireDelay;
+      this.fireTimer = this.salamanderFireInterval(0.16);
     } else if (this.phase === 2) {
       if (this.tryStartSalamanderLaserVolley()) {
         this.fireMagmaGate(bullets);
       } else {
         this.fireFlameFan(bullets, 7);
       }
-      this.fireTimer = 0.38 * this.difficulty.fireDelay;
+      this.fireTimer = this.salamanderFireInterval(0.38);
     } else if (this.phase === 3) {
       this.fireCinderRain(bullets, 10, 0.58);
       this.fireFlameFan(bullets, 9);
-      this.fireTimer = 0.28 * this.difficulty.fireDelay;
+      this.fireTimer = this.salamanderFireInterval(0.28);
     } else {
       if (Math.floor(this.age * 5) % 2 === 0) {
         this.fireFlameWheel(bullets, 10, 210);
@@ -441,8 +442,12 @@ export class Boss implements Actor {
         }
         this.fireFlameFan(bullets, 11);
       }
-      this.fireTimer = 0.22 * this.difficulty.fireDelay;
+      this.fireTimer = this.salamanderFireInterval(0.22);
     }
+  }
+
+  private salamanderFireInterval(baseSeconds: number) {
+    return baseSeconds * SALAMANDER_FIRE_INTERVAL_SCALE * this.difficulty.fireDelay;
   }
 
   private fireCinderRain(bullets: BulletSystem, count: number, spread: number) {

@@ -1,5 +1,5 @@
 import { AnimatedSprite, Assets, Container, Graphics, Rectangle, Text, Texture } from "pixi.js";
-import type { BossKind, BulletKind, BulletOwner, ItemKind, StageEnemyKind } from "./types";
+import type { BossKind, BulletKind, BulletOwner, ItemKind, StageEnemyKind, StageEnemyPattern } from "./types";
 
 export type CharacterAnimationState = "idle" | "left" | "right" | "hit";
 
@@ -43,6 +43,11 @@ const characterSheets = {
     cellSize: 96,
     displaySize: 88,
     url: new URL("../assets/characters/enemy-dragon-sheet.png", import.meta.url).href
+  },
+  enemyFireFamiliar: {
+    cellSize: 96,
+    displaySize: 64,
+    url: new URL("../assets/characters/enemy-fire-familiar-sheet.png", import.meta.url).href
   },
   fire: {
     cellSize: 128,
@@ -127,10 +132,12 @@ export class CharacterVisual extends Container {
 
 export const createPlayerVisual = () => createCharacterVisual("player");
 
-export const createEnemyVisual = (kind: StageEnemyKind = "moth") =>
+export const createEnemyVisual = (kind: StageEnemyKind = "moth", pattern?: StageEnemyPattern) =>
   createCharacterVisual(
     kind === "dragon"
-      ? "enemyDragon"
+      ? pattern === "flameSnipe"
+        ? "enemyFireFamiliar"
+        : "enemyDragon"
       : kind === "crystal"
         ? "enemyCrystal"
         : kind === "astralFamiliar"
