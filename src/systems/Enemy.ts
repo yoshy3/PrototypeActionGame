@@ -23,6 +23,7 @@ export class Enemy implements Actor {
   hp: number;
   alive = true;
   private age = 0;
+  private moveAge = 0;
   private fireTimer = 0.5;
   private fireLockTimer = 0;
   private readonly queuedFires: QueuedFire[] = [];
@@ -308,21 +309,22 @@ export class Enemy implements Actor {
   }
 
   private move(dt: number, side: number) {
+    this.moveAge += dt;
     const move = this.spawn.move ?? "sway";
     if (move === "dive") {
-      this.pos.x += Math.sin(this.age * 2.2) * 26 * dt * side;
-      this.pos.y += (this.age < 1.25 ? 145 : 62) * dt;
+      this.pos.x += Math.sin(this.moveAge * 2.2) * 26 * dt * side;
+      this.pos.y += (this.moveAge < 1.25 ? 145 : 62) * dt;
       return;
     }
 
     if (move === "arc") {
-      this.pos.x = clamp(this.spawn.x + Math.sin(this.age * 1.35) * 140 * side, 42, 678);
+      this.pos.x = clamp(this.spawn.x + Math.sin(this.moveAge * 1.35) * 140 * side, 42, 678);
       this.pos.y += 72 * dt;
       return;
     }
 
-    this.pos.x += Math.sin(this.age * 1.7) * 42 * dt * side;
-    this.pos.y += (this.age < 1.8 ? 95 : 36) * dt;
+    this.pos.x += Math.sin(this.moveAge * 1.7) * 42 * dt * side;
+    this.pos.y += (this.moveAge < 1.8 ? 95 : 36) * dt;
   }
 
   private getFireDelay(pattern: StageEnemyPattern) {
