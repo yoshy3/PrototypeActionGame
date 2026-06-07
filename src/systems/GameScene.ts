@@ -867,6 +867,11 @@ export class GameScene {
       return;
     }
 
+    if (this.preBossIntroActive) {
+      this.firestormTimer = 0;
+      return;
+    }
+
     this.firestormTimer -= dt;
     const interval = (this.boss?.alive ? 0.095 : 0.13) * this.difficulty.fireDelay;
     while (this.firestormTimer <= 0) {
