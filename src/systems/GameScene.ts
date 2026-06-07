@@ -48,6 +48,7 @@ const PAUSE_TITLE_HOLD_TIME = 1.2;
 const ENDING_MIN_INPUT_TIME = 5.0;
 const ENDING_CREDIT_START_Y = 1040;
 const ENDING_CREDIT_SCROLL_SPEED = 42;
+const ENDING_CREDIT_FINAL_Y = 130;
 const ENDING_HINT_Y = 70;
 const PRE_BOSS_WARNING_LEAD_TIME = 2.1;
 const PRE_BOSS_INTRO_DURATION = 2.4;
@@ -1185,22 +1186,24 @@ export class GameScene {
 
   private updateEndingState(dt: number) {
     this.endingInputTimer = Math.max(0, this.endingInputTimer - dt);
-    const centeredY = (960 - this.endingCredits.height) / 2;
-    this.endingCreditScrollY = Math.max(centeredY, this.endingCreditScrollY - ENDING_CREDIT_SCROLL_SPEED * dt);
+    this.endingCreditScrollY = Math.max(ENDING_CREDIT_FINAL_Y, this.endingCreditScrollY - ENDING_CREDIT_SCROLL_SPEED * dt);
     this.endingCredits.y = this.endingCreditScrollY;
     this.refreshEndingHint();
   }
 
   private createEndingCredits() {
-    const lines: Array<{ text: string; kind: "title" | "heading" | "role" | "tool" | "gap" }> = [
+    const lines: Array<{ text: string; kind: "title" | "heading" | "role" | "tool" | "gap"; height?: number }> = [
       { text: "MOONLIT SPELL BARRAGE", kind: "title" },
-      { text: "", kind: "gap" },
+      { text: "", kind: "gap", height: 32 },
       { text: "Inspired by Touhou Project", kind: "heading" },
-      { text: "", kind: "gap" },
+      { text: "", kind: "gap", height: 30 },
       { text: "Staff", kind: "heading" },
-      { text: "", kind: "gap" },
+      { text: "", kind: "gap", height: 26 },
       { text: "Programmer", kind: "role" },
       { text: "Codex App (GPT-5.5)", kind: "tool" },
+      { text: "", kind: "gap" },
+      { text: "Dialogue Script", kind: "role" },
+      { text: "ChatGPT", kind: "tool" },
       { text: "", kind: "gap" },
       { text: "Graphics Artist", kind: "role" },
       { text: "ChatGPT Image 2", kind: "tool" },
@@ -1211,13 +1214,16 @@ export class GameScene {
       { text: "", kind: "gap" },
       { text: "SFX Designer", kind: "role" },
       { text: "ElevenLabs", kind: "tool" },
-      { text: "Bfxr", kind: "tool" }
+      { text: "Bfxr", kind: "tool" },
+      { text: "", kind: "gap" },
+      { text: "Character Voice", kind: "role" },
+      { text: "ElevenLabs", kind: "tool" }
     ];
 
     let y = 0;
     for (const line of lines) {
       if (line.kind === "gap") {
-        y += 34;
+        y += line.height ?? 22;
         continue;
       }
 
@@ -1237,7 +1243,7 @@ export class GameScene {
       label.anchor.set(0.5, 0);
       label.position.set(360, y);
       this.endingCredits.addChild(label);
-      y += line.kind === "title" ? 62 : line.kind === "heading" ? 52 : line.kind === "role" ? 38 : 32;
+      y += line.kind === "title" ? 54 : line.kind === "heading" ? 40 : line.kind === "role" ? 31 : 26;
     }
   }
 
@@ -1256,15 +1262,15 @@ export class GameScene {
 
   private getEndingCreditFontSize(kind: "title" | "heading" | "role" | "tool") {
     if (kind === "title") {
-      return 42;
+      return 36;
     }
     if (kind === "heading") {
-      return 25;
+      return 22;
     }
     if (kind === "role") {
-      return 28;
+      return 24;
     }
-    return 22;
+    return 20;
   }
 
   private refreshEndingHint() {
