@@ -1210,7 +1210,7 @@ export class GameScene {
       { text: "Stable Audio", kind: "tool" },
       { text: "", kind: "gap" },
       { text: "SFX Designer", kind: "role" },
-      { text: "ElevenCreative", kind: "tool" },
+      { text: "ElevenLabs", kind: "tool" },
       { text: "Bfxr", kind: "tool" }
     ];
 
