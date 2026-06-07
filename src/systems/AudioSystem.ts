@@ -10,6 +10,31 @@ export type MusicTrackId =
   | "clear"
   | "ending"
   | "gameover";
+export type VoiceId =
+  | "stage1PreBossBattle"
+  | "stage1Phase1"
+  | "stage1Phase2"
+  | "stage1Phase3"
+  | "stage1Phase4"
+  | "stage1Phase5"
+  | "stage2PreBossBattle"
+  | "stage2Phase1"
+  | "stage2Phase2"
+  | "stage2Phase3"
+  | "stage2Phase4"
+  | "stage2Phase5"
+  | "stage3PreBossBattle"
+  | "stage3Phase1"
+  | "stage3Phase2"
+  | "stage3Phase3"
+  | "stage3Phase4"
+  | "stage3Phase5"
+  | "stage4PreBossBattle"
+  | "stage4Phase1"
+  | "stage4Phase2"
+  | "stage4Phase3"
+  | "stage4Phase4"
+  | "stage4Phase5";
 
 const titleMusicUrl = new URL("../assets/audio/title.mp3", import.meta.url).href;
 const stageMusicUrl = new URL("../assets/audio/stage.mp3", import.meta.url).href;
@@ -31,6 +56,30 @@ const getItemSfxUrl = new URL("../assets/audio/sfx/get-item.wav", import.meta.ur
 const powerUpSfxUrl = new URL("../assets/audio/sfx/power-up.wav", import.meta.url).href;
 const bossAppearSfxUrl = new URL("../assets/audio/sfx/boss-appear.wav", import.meta.url).href;
 const defeatBossSfxUrl = new URL("../assets/audio/sfx/defeat-boss.wav", import.meta.url).href;
+const stage1PreBossBattleVoiceUrl = new URL("../assets/audio/voices/stage1/pre-boss-battle.mp3", import.meta.url).href;
+const stage1Phase1VoiceUrl = new URL("../assets/audio/voices/stage1/phase1.mp3", import.meta.url).href;
+const stage1Phase2VoiceUrl = new URL("../assets/audio/voices/stage1/phase2.mp3", import.meta.url).href;
+const stage1Phase3VoiceUrl = new URL("../assets/audio/voices/stage1/phase3.mp3", import.meta.url).href;
+const stage1Phase4VoiceUrl = new URL("../assets/audio/voices/stage1/phase4.mp3", import.meta.url).href;
+const stage1Phase5VoiceUrl = new URL("../assets/audio/voices/stage1/phase5.mp3", import.meta.url).href;
+const stage2PreBossBattleVoiceUrl = new URL("../assets/audio/voices/stage2/pre-boss-battle.mp3", import.meta.url).href;
+const stage2Phase1VoiceUrl = new URL("../assets/audio/voices/stage2/phase1.mp3", import.meta.url).href;
+const stage2Phase2VoiceUrl = new URL("../assets/audio/voices/stage2/phase2.mp3", import.meta.url).href;
+const stage2Phase3VoiceUrl = new URL("../assets/audio/voices/stage2/phase3.mp3", import.meta.url).href;
+const stage2Phase4VoiceUrl = new URL("../assets/audio/voices/stage2/phase4.mp3", import.meta.url).href;
+const stage2Phase5VoiceUrl = new URL("../assets/audio/voices/stage2/phase5.mp3", import.meta.url).href;
+const stage3PreBossBattleVoiceUrl = new URL("../assets/audio/voices/stage3/pre-boss-battle.mp3", import.meta.url).href;
+const stage3Phase1VoiceUrl = new URL("../assets/audio/voices/stage3/phase1.mp3", import.meta.url).href;
+const stage3Phase2VoiceUrl = new URL("../assets/audio/voices/stage3/phase2.mp3", import.meta.url).href;
+const stage3Phase3VoiceUrl = new URL("../assets/audio/voices/stage3/phase3.mp3", import.meta.url).href;
+const stage3Phase4VoiceUrl = new URL("../assets/audio/voices/stage3/phase4.mp3", import.meta.url).href;
+const stage3Phase5VoiceUrl = new URL("../assets/audio/voices/stage3/phase5.mp3", import.meta.url).href;
+const stage4PreBossBattleVoiceUrl = new URL("../assets/audio/voices/stage4/pre-boss-battle.mp3", import.meta.url).href;
+const stage4Phase1VoiceUrl = new URL("../assets/audio/voices/stage4/phase1.mp3", import.meta.url).href;
+const stage4Phase2VoiceUrl = new URL("../assets/audio/voices/stage4/phase2.mp3", import.meta.url).href;
+const stage4Phase3VoiceUrl = new URL("../assets/audio/voices/stage4/phase3.mp3", import.meta.url).href;
+const stage4Phase4VoiceUrl = new URL("../assets/audio/voices/stage4/phase4.mp3", import.meta.url).href;
+const stage4Phase5VoiceUrl = new URL("../assets/audio/voices/stage4/phase5.mp3", import.meta.url).href;
 
 type GeneratedMusicTrack = {
   mode: "generated";
@@ -49,6 +98,8 @@ type AssetMusicTrack = {
 };
 
 type MusicTrack = GeneratedMusicTrack | AssetMusicTrack;
+const VOICE_VOLUME = 0.42;
+const VOICE_MUSIC_DUCK_SCALE = 0.45;
 type SfxId =
   | "shoot"
   | "defeat"
@@ -133,6 +184,33 @@ const sfxVolumes: Partial<Record<SfxId, number>> = {
   getItem: 0.5
 };
 
+const voiceUrls: Record<VoiceId, string> = {
+  stage1PreBossBattle: stage1PreBossBattleVoiceUrl,
+  stage1Phase1: stage1Phase1VoiceUrl,
+  stage1Phase2: stage1Phase2VoiceUrl,
+  stage1Phase3: stage1Phase3VoiceUrl,
+  stage1Phase4: stage1Phase4VoiceUrl,
+  stage1Phase5: stage1Phase5VoiceUrl,
+  stage2PreBossBattle: stage2PreBossBattleVoiceUrl,
+  stage2Phase1: stage2Phase1VoiceUrl,
+  stage2Phase2: stage2Phase2VoiceUrl,
+  stage2Phase3: stage2Phase3VoiceUrl,
+  stage2Phase4: stage2Phase4VoiceUrl,
+  stage2Phase5: stage2Phase5VoiceUrl,
+  stage3PreBossBattle: stage3PreBossBattleVoiceUrl,
+  stage3Phase1: stage3Phase1VoiceUrl,
+  stage3Phase2: stage3Phase2VoiceUrl,
+  stage3Phase3: stage3Phase3VoiceUrl,
+  stage3Phase4: stage3Phase4VoiceUrl,
+  stage3Phase5: stage3Phase5VoiceUrl,
+  stage4PreBossBattle: stage4PreBossBattleVoiceUrl,
+  stage4Phase1: stage4Phase1VoiceUrl,
+  stage4Phase2: stage4Phase2VoiceUrl,
+  stage4Phase3: stage4Phase3VoiceUrl,
+  stage4Phase4: stage4Phase4VoiceUrl,
+  stage4Phase5: stage4Phase5VoiceUrl
+};
+
 export class AudioSystem {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -146,6 +224,8 @@ export class AudioSystem {
   private requestedTrack: MusicTrackId | null = null;
   private currentTrack: MusicTrackId | null = null;
   private assetMusic: HTMLAudioElement | null = null;
+  private voice: HTMLAudioElement | null = null;
+  private voiceEnded: (() => void) | null = null;
   private sfxBuffers = new Map<SfxId, AudioBuffer | null>();
   private sfxLoading = new Map<SfxId, Promise<AudioBuffer | null>>();
   private musicStep = 0;
@@ -184,10 +264,14 @@ export class AudioSystem {
     if (this.master && this.context) {
       this.master.gain.setTargetAtTime(this.muted ? 0 : 0.18, this.context.currentTime, 0.025);
       this.refreshMusicVolume();
+      this.refreshVoiceVolume();
       if (!this.muted) {
         void this.context.resume();
         this.assetMusic?.play().catch((err) => {
           console.warn("Audio autoplay or resume blocked:", err);
+        });
+        this.voice?.play().catch((err) => {
+          console.warn("Voice autoplay or resume blocked:", err);
         });
       }
     }
@@ -226,6 +310,70 @@ export class AudioSystem {
 
   setPaused(paused: boolean) {
     this.paused = paused;
+    this.refreshMusicVolume();
+    this.refreshVoiceVolume();
+    if (!this.voice || this.muted) {
+      return;
+    }
+    if (paused) {
+      this.voice.pause();
+      this.refreshMusicVolume();
+      return;
+    }
+    this.voice.play().catch((err) => {
+      console.warn("Voice resume blocked:", err);
+    });
+    this.refreshMusicVolume();
+  }
+
+  playVoice(id: VoiceId, onEnded?: () => void) {
+    this.stopVoice();
+
+    if (this.muted) {
+      window.setTimeout(() => onEnded?.(), 0);
+      return;
+    }
+
+    const voice = new Audio(voiceUrls[id]);
+    voice.preload = "auto";
+    this.voice = voice;
+    this.voiceEnded = onEnded ?? null;
+    this.refreshVoiceVolume();
+    this.refreshMusicVolume();
+
+    const finish = () => {
+      if (this.voice !== voice) {
+        return;
+      }
+      this.voice = null;
+      const callback = this.voiceEnded;
+      this.voiceEnded = null;
+      this.refreshMusicVolume();
+      callback?.();
+    };
+
+    voice.addEventListener("ended", finish, { once: true });
+    voice.addEventListener(
+      "error",
+      () => {
+        console.warn("Voice playback failed:", voiceUrls[id]);
+        finish();
+      },
+      { once: true }
+    );
+    voice.play().catch((err) => {
+      console.warn("Voice autoplay blocked:", err);
+      finish();
+    });
+  }
+
+  stopVoice() {
+    if (this.voice) {
+      this.voice.pause();
+      this.voice.currentTime = 0;
+    }
+    this.voice = null;
+    this.voiceEnded = null;
     this.refreshMusicVolume();
   }
 
@@ -595,11 +743,19 @@ export class AudioSystem {
 
     const track = musicTracks[this.currentTrack];
     const pausedScale = this.paused ? 0.42 : 1;
+    const voiceScale = this.voice && !this.voice.paused ? VOICE_MUSIC_DUCK_SCALE : 1;
     if (this.assetMusic && track.mode === "asset") {
-      this.assetMusic.volume = this.muted ? 0 : Math.min(1, track.volume * pausedScale);
+      this.assetMusic.volume = this.muted ? 0 : Math.min(1, track.volume * pausedScale * voiceScale);
       return;
     }
-    this.musicGain.gain.setTargetAtTime(track.volume * pausedScale, this.context.currentTime, 0.05);
+    this.musicGain.gain.setTargetAtTime(track.volume * pausedScale * voiceScale, this.context.currentTime, 0.05);
+  }
+
+  private refreshVoiceVolume() {
+    if (!this.voice) {
+      return;
+    }
+    this.voice.volume = this.muted ? 0 : this.paused ? 0.32 : VOICE_VOLUME;
   }
 }
 

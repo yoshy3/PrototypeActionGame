@@ -1,5 +1,5 @@
 import { Application, Assets, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
-import { AudioSystem, type MusicTrackId } from "./AudioSystem";
+import { AudioSystem, type MusicTrackId, type VoiceId } from "./AudioSystem";
 import { Asteroid } from "./Asteroid";
 import { Boss } from "./Boss";
 import { BulletSystem } from "./BulletSystem";
@@ -10,6 +10,7 @@ import { Input } from "./Input";
 import { ItemSystem } from "./ItemSystem";
 import { MAX_POWER, Player, POWER_STEP } from "./Player";
 import { stages } from "./StageScript";
+import type { BossKind } from "./types";
 
 type GameState =
   | "boot"
@@ -25,6 +26,18 @@ const HIGH_SCORE_KEY = "moonlit-spell-barrage.highScores";
 const LEGACY_HIGH_SCORE_KEY = "moonlit-spell-barrage.highScore";
 const TITLE_IMAGE_URL = new URL("../assets/images/title.png", import.meta.url).href;
 const ENDING_IMAGE_URL = new URL("../assets/images/ending.png", import.meta.url).href;
+const BOSS_STANDING_URLS: Record<BossKind, string> = {
+  lunarWitch: new URL("../assets/characters/boss-lunar-witch-standing.png", import.meta.url).href,
+  starlightOracle: new URL("../assets/characters/boss-starlight-oracle-standing.png", import.meta.url).href,
+  cosmicSorcerer: new URL("../assets/characters/boss-cosmic-sorcerer-standing.png", import.meta.url).href,
+  salamander: new URL("../assets/characters/boss-salamander-standing.png", import.meta.url).href
+};
+const PHASE_VOICES_BY_STAGE: Partial<Record<number, readonly VoiceId[]>> = {
+  1: ["stage1Phase1", "stage1Phase2", "stage1Phase3", "stage1Phase4", "stage1Phase5"],
+  2: ["stage2Phase1", "stage2Phase2", "stage2Phase3", "stage2Phase4", "stage2Phase5"],
+  3: ["stage3Phase1", "stage3Phase2", "stage3Phase3", "stage3Phase4", "stage3Phase5"],
+  4: ["stage4Phase1", "stage4Phase2", "stage4Phase3", "stage4Phase4", "stage4Phase5"]
+};
 const AUTO_COLLECT_LINE_Y = 340;
 const ITEM_COLLECT_RADIUS = 40;
 const ASTEROID_HIT_RADIUS_SCALE = 0.52;
@@ -36,6 +49,9 @@ const ENDING_MIN_INPUT_TIME = 5.0;
 const ENDING_CREDIT_START_Y = 1040;
 const ENDING_CREDIT_SCROLL_SPEED = 42;
 const ENDING_HINT_Y = 70;
+const PRE_BOSS_WARNING_LEAD_TIME = 2.1;
+const PRE_BOSS_INTRO_DURATION = 2.4;
+const PRE_BOSS_INTRO_FADE_TIME = 0.35;
 const PRESS_PROMPT_BLINK_SPEED = 5.2;
 const PRESS_PROMPT_MIN_ALPHA = 0.34;
 const DEV_BOSS_START_ENABLED = import.meta.env.DEV;
@@ -56,6 +72,7 @@ export class GameScene {
   private readonly endingArt = new Sprite(Texture.EMPTY);
   private readonly endingShade = new Graphics();
   private readonly endingCredits = new Container();
+  private readonly bossStandingTextures = new Map<BossKind, Texture>();
   private readonly endingHint = new Text({
     text: "",
     style: {
@@ -134,6 +151,45 @@ export class GameScene {
     text: "",
     style: { fill: 0xaefdf2, fontSize: 18, align: "center", fontWeight: "700", letterSpacing: 0 }
   });
+  private readonly preBossIntro = new Container();
+  private readonly preBossIntroShade = new Graphics();
+  private readonly preBossIntroStripe = new Graphics();
+  private readonly preBossIntroStanding = new Sprite(Texture.EMPTY);
+  private readonly preBossIntroTitle = new Text({
+    text: "",
+    style: {
+      fill: 0xffffff,
+      fontSize: 44,
+      align: "left",
+      fontWeight: "700",
+      letterSpacing: 0,
+      stroke: { color: 0x080412, width: 7 }
+    }
+  });
+  private readonly preBossIntroCaption = new Text({
+    text: "",
+    style: {
+      fill: 0xffe2f3,
+      fontSize: 24,
+      align: "left",
+      fontWeight: "700",
+      letterSpacing: 0,
+      wordWrap: true,
+      wordWrapWidth: 330,
+      stroke: { color: 0x080412, width: 6 }
+    }
+  });
+  private readonly preBossIntroPrompt = new Text({
+    text: "",
+    style: {
+      fill: 0xaefdf2,
+      fontSize: 18,
+      align: "left",
+      fontWeight: "700",
+      letterSpacing: 0,
+      stroke: { color: 0x080412, width: 5 }
+    }
+  });
   private readonly pauseTitleProgress = new Graphics();
   private readonly bossBar = new Graphics();
   private readonly stageProgress = new Graphics();
@@ -159,6 +215,10 @@ export class GameScene {
   private pressPromptBlinkTime = 0;
   private bossAsteroidTimer = 0;
   private firestormTimer = 0;
+  private preBossIntroTimer = 0;
+  private preBossIntroActive = false;
+  private preBossIntroFinished = false;
+  private preBossIntroWaitingForVoice = false;
   private clearWasRecord = false;
   private announcedBoss = false;
   private playedClear = false;
@@ -186,6 +246,12 @@ export class GameScene {
     this.endingArt.anchor.set(0.5);
     this.endingArt.position.set(360, 480);
     this.fitEndingArt();
+    await Promise.all(
+      Object.entries(BOSS_STANDING_URLS).map(async ([kind, url]) => {
+        const texture = (await Assets.load(url)) as Texture;
+        this.bossStandingTextures.set(kind as BossKind, texture);
+      })
+    );
 
     this.app.stage.addChild(this.root);
     this.root.addChild(
@@ -215,6 +281,24 @@ export class GameScene {
     this.clearPrompt.position.set(360, 625);
     this.clearFx.visible = false;
     this.clearFx.addChild(this.clearRays, this.clearSparkles, this.clearTitle, this.clearStats, this.clearHint, this.clearPrompt);
+    this.preBossIntro.visible = false;
+    this.preBossIntro.alpha = 0;
+    this.preBossIntroStanding.anchor.set(0.5, 0.5);
+    this.preBossIntroStanding.position.set(500, 498);
+    this.preBossIntroTitle.anchor.set(0, 0.5);
+    this.preBossIntroTitle.position.set(58, 382);
+    this.preBossIntroCaption.anchor.set(0, 0.5);
+    this.preBossIntroCaption.position.set(60, 442);
+    this.preBossIntroPrompt.anchor.set(0, 0.5);
+    this.preBossIntroPrompt.position.set(60, 532);
+    this.preBossIntro.addChild(
+      this.preBossIntroShade,
+      this.preBossIntroStripe,
+      this.preBossIntroStanding,
+      this.preBossIntroTitle,
+      this.preBossIntroCaption,
+      this.preBossIntroPrompt
+    );
     this.endingHint.anchor.set(0.5);
     this.endingHint.position.set(360, 870);
     this.endingPrompt.anchor.set(0.5);
@@ -225,7 +309,18 @@ export class GameScene {
     this.endingLayer.addChild(this.endingArt, this.endingShade, this.endingCredits, this.endingHint, this.endingPrompt);
     this.hud.position.set(22, 20);
     this.subHud.position.set(22, 64);
-    this.ui.addChild(this.hud, this.subHud, this.bossBar, this.stageProgress, this.clearFx, this.banner, this.overlay, this.overlayPrompt, this.pauseTitleProgress);
+    this.ui.addChild(
+      this.hud,
+      this.subHud,
+      this.bossBar,
+      this.stageProgress,
+      this.clearFx,
+      this.preBossIntro,
+      this.banner,
+      this.overlay,
+      this.overlayPrompt,
+      this.pauseTitleProgress
+    );
 
     this.drawBackground();
     this.showBootScreen();
@@ -247,7 +342,10 @@ export class GameScene {
       return;
     }
 
-    if (this.input.wasPressed("escape") && (this.state === "playing" || this.state === "paused")) {
+    if (this.input.wasPressed("escape") && this.state === "playing" && this.preBossIntroActive) {
+      this.audio.stopVoice();
+      this.finishPreBossIntro();
+    } else if (this.input.wasPressed("escape") && (this.state === "playing" || this.state === "paused")) {
       this.state = this.state === "playing" ? "paused" : "playing";
       this.audio.setPaused(this.state === "paused");
       this.overlay.position.set(360, 460);
@@ -344,10 +442,12 @@ export class GameScene {
     this.time += dt;
     this.clearTimer = Math.max(0, this.clearTimer - dt);
     this.updateBanner(dt);
-    if (!this.announcedBoss && this.time >= this.currentStage.bossStartTime - 2.1) {
+    this.updatePreBossIntro(dt);
+    if (!this.announcedBoss && this.time >= this.currentStage.bossStartTime - PRE_BOSS_WARNING_LEAD_TIME) {
       this.announcedBoss = true;
       this.audio.warning();
       this.showBanner(`WARNING\n${this.currentStage.warningText}`, 2.0);
+      this.beginPreBossIntro();
     }
 
     if (this.player.update(dt, this.input, this.bullets, { width: 720, height: 960 }, this.power)) {
@@ -375,7 +475,7 @@ export class GameScene {
       asteroid.update(dt);
     }
 
-    if (!this.boss && this.time >= this.currentStage.bossStartTime) {
+    if (!this.boss && this.preBossIntroFinished && this.time >= this.currentStage.bossStartTime) {
       this.boss = new Boss(this.difficulty, this.currentStage.bossKind);
       this.bossPhase = this.boss.getPhase();
       this.playfield.addChild(this.boss.container);
@@ -386,9 +486,11 @@ export class GameScene {
     this.updateBossAsteroidWaves(dt);
     if (this.boss?.alive) {
       if (this.boss.phaseChanged && this.boss.getPhase() !== this.bossPhase) {
+        const endedPhase = this.bossPhase;
         this.bossPhase = this.boss.getPhase();
         this.bullets.clear("enemy");
         this.audio.spellChange();
+        this.playBossPhaseVoice(endedPhase);
         this.showBanner(`SPELL ${this.bossPhase + 1}\n${this.boss.getSpellName()}`, 1.7);
         this.shake(0.28, 5);
         this.spark(this.boss.pos.x, this.boss.pos.y, 0xffe2f3, 34);
@@ -411,6 +513,7 @@ export class GameScene {
 
     if (!this.player.alive) {
       this.state = "gameover";
+      this.hidePreBossIntro();
       this.audio.playMusic("gameover");
       this.finishRun("GAME OVER");
     } else if (this.boss && !this.boss.alive && this.clearTimer <= 0) {
@@ -438,12 +541,13 @@ export class GameScene {
     this.clearPauseTitleProgress();
     this.audio.resume();
     this.audio.setPaused(false);
-    this.audio.playMusic(bossDebug ? this.getBossMusic() : this.getStageMusic());
+    this.hidePreBossIntro();
+    this.audio.playMusic(this.getStageMusic());
     this.state = "playing";
     this.titleArt.visible = false;
     this.playfield.visible = true;
     this.overlay.position.set(360, 460);
-    this.time = bossDebug ? this.currentStage.bossStartTime : 0;
+    this.time = bossDebug ? Math.max(0, this.currentStage.bossStartTime - PRE_BOSS_WARNING_LEAD_TIME - 0.12) : 0;
     this.spawnIndex = bossDebug ? this.currentStage.spawns.length : 0;
     this.asteroidIndex = bossDebug ? (this.currentStage.obstacles?.length ?? 0) : 0;
     this.score = 0;
@@ -457,9 +561,13 @@ export class GameScene {
     this.stageClearTimer = 0;
     this.bossAsteroidTimer = 0;
     this.firestormTimer = 0;
+    this.preBossIntroTimer = 0;
+    this.preBossIntroActive = false;
+    this.preBossIntroWaitingForVoice = false;
+    this.preBossIntroFinished = false;
     this.flashTimer = 0;
     this.bannerTimer = 0;
-    this.announcedBoss = bossDebug;
+    this.announcedBoss = false;
     this.playedClear = false;
     this.bossPhase = 0;
     this.clearWasRecord = false;
@@ -488,7 +596,7 @@ export class GameScene {
       this.playfield.addChild(this.player.container);
     }
     if (bossDebug) {
-      this.showBanner("BOSS DEBUG\nFull power start", 1.4);
+      this.showBanner("BOSS DEBUG\nCut-in check start", 1.4);
     } else if (this.currentStageIndex > 0) {
       this.showBanner(`${this.currentStage.title.toUpperCase()}\nFull power debug start`, 1.4);
     }
@@ -498,6 +606,7 @@ export class GameScene {
     this.state = "title";
     this.clearPauseTitleProgress();
     this.audio.setPaused(false);
+    this.hidePreBossIntro();
     this.audio.playMusic("title");
     this.titleArt.visible = true;
     this.playfield.visible = false;
@@ -539,6 +648,113 @@ export class GameScene {
     return this.currentStage.stageMusic ?? "stage";
   }
 
+  private beginPreBossIntro() {
+    this.preBossIntroTimer = 0;
+    this.preBossIntroActive = true;
+    this.preBossIntroFinished = false;
+    this.preBossIntroWaitingForVoice = this.currentStage.preBossVoice !== undefined;
+    this.spawnIndex = this.currentStage.spawns.length;
+    this.clearPreBossHazards();
+
+    const texture = this.bossStandingTextures.get(this.currentStage.bossKind);
+    if (texture) {
+      this.preBossIntroStanding.texture = texture;
+      this.fitPreBossStanding();
+    }
+
+    this.preBossIntroTitle.text = "WARNING";
+    this.preBossIntroCaption.text = this.currentStage.warningText;
+    this.preBossIntroPrompt.text = "Esc / Start to skip";
+    this.drawPreBossIntro();
+    this.preBossIntro.visible = true;
+    this.preBossIntro.alpha = 0;
+
+    if (this.currentStage.preBossVoice) {
+      this.audio.playVoice(this.currentStage.preBossVoice, () => {
+        if (!this.preBossIntroActive) {
+          return;
+        }
+        this.preBossIntroWaitingForVoice = false;
+        this.preBossIntroTimer = Math.max(0, PRE_BOSS_INTRO_DURATION - PRE_BOSS_INTRO_FADE_TIME);
+      });
+    }
+  }
+
+  private updatePreBossIntro(dt: number) {
+    if (!this.preBossIntroActive) {
+      return;
+    }
+
+    this.preBossIntroTimer += dt;
+    const fadeIn = Math.min(1, this.preBossIntroTimer / PRE_BOSS_INTRO_FADE_TIME);
+    const fadeOut = this.preBossIntroWaitingForVoice
+      ? 1
+      : Math.max(0, Math.min(1, (PRE_BOSS_INTRO_DURATION - this.preBossIntroTimer) / PRE_BOSS_INTRO_FADE_TIME));
+    this.preBossIntro.alpha = Math.min(fadeIn, fadeOut);
+    this.preBossIntroPrompt.alpha =
+      PRESS_PROMPT_MIN_ALPHA + (1 - PRESS_PROMPT_MIN_ALPHA) * (0.5 + Math.sin(this.preBossIntroTimer * PRESS_PROMPT_BLINK_SPEED) * 0.5);
+    this.preBossIntroStanding.x = 500 + Math.sin(this.preBossIntroTimer * 1.6) * 4;
+    this.preBossIntroStanding.y = 498 + Math.cos(this.preBossIntroTimer * 1.2) * 3;
+
+    if (!this.preBossIntroWaitingForVoice && this.preBossIntroTimer >= PRE_BOSS_INTRO_DURATION) {
+      this.finishPreBossIntro();
+    }
+  }
+
+  private finishPreBossIntro() {
+    this.preBossIntroActive = false;
+    this.preBossIntroFinished = true;
+    this.preBossIntroWaitingForVoice = false;
+    this.preBossIntro.visible = false;
+    this.preBossIntro.alpha = 0;
+    this.preBossIntroPrompt.alpha = 1;
+  }
+
+  private hidePreBossIntro(stopVoice = true) {
+    if (stopVoice) {
+      this.audio.stopVoice();
+    }
+    this.preBossIntroTimer = 0;
+    this.preBossIntroActive = false;
+    this.preBossIntroFinished = false;
+    this.preBossIntroWaitingForVoice = false;
+    this.preBossIntro.visible = false;
+    this.preBossIntro.alpha = 0;
+    this.preBossIntroPrompt.alpha = 1;
+  }
+
+  private drawPreBossIntro() {
+    this.preBossIntroShade.clear();
+    this.preBossIntroShade.rect(0, 260, 720, 330).fill({ color: 0x080412, alpha: 0.82 });
+    this.preBossIntroShade.rect(0, 0, 720, 960).fill({ color: 0x000000, alpha: 0.18 });
+
+    this.preBossIntroStripe.clear();
+    this.preBossIntroStripe.rect(0, 260, 720, 4).fill({ color: 0xff72bd, alpha: 0.82 });
+    this.preBossIntroStripe.rect(0, 586, 720, 4).fill({ color: 0xaefdf2, alpha: 0.72 });
+    this.preBossIntroStripe.rect(42, 404, 300, 2).fill({ color: 0xfff4a8, alpha: 0.52 });
+  }
+
+  private fitPreBossStanding() {
+    const width = this.preBossIntroStanding.texture.width;
+    const height = this.preBossIntroStanding.texture.height;
+    if (width <= 0 || height <= 0) {
+      return;
+    }
+
+    const scale = Math.min(360 / width, 520 / height, 1);
+    this.preBossIntroStanding.scale.set(scale);
+  }
+
+  private playBossPhaseVoice(phase: number) {
+    const phaseVoices = PHASE_VOICES_BY_STAGE[this.currentStage.id];
+    if (!phaseVoices) {
+      return;
+    }
+
+    const voice = phaseVoices[Math.max(0, Math.min(phaseVoices.length - 1, phase))];
+    this.audio.playVoice(voice);
+  }
+
   private updatePausedTitleReturn(dt: number) {
     if (this.input.isDown("z", " ")) {
       this.pauseTitleHoldTimer = Math.min(PAUSE_TITLE_HOLD_TIME, this.pauseTitleHoldTimer + dt);
@@ -576,6 +792,7 @@ export class GameScene {
 
   private showBootScreen() {
     this.state = "boot";
+    this.hidePreBossIntro();
     this.titleArt.visible = true;
     this.playfield.visible = false;
     this.hideClearResult();
@@ -719,6 +936,7 @@ export class GameScene {
             this.awardLife("BOSS BONUS");
             this.clearTimer = 0.8;
             this.bullets.clear("enemy");
+            this.playBossPhaseVoice(this.bossPhase);
             this.audio.bossDefeated();
             this.dropBossItems(this.boss.pos.x, this.boss.pos.y);
             this.shake(0.42, 9);
@@ -810,6 +1028,14 @@ export class GameScene {
         this.enemies.splice(i, 1);
       }
     }
+  }
+
+  private clearPreBossHazards() {
+    for (const enemy of this.enemies) {
+      enemy.destroy();
+    }
+    this.enemies.length = 0;
+    this.bullets.clear("enemy");
   }
 
   private cleanupAsteroids() {
@@ -905,6 +1131,7 @@ export class GameScene {
     this.state = "ending";
     this.endingInputTimer = ENDING_MIN_INPUT_TIME;
     this.endingCreditScrollY = ENDING_CREDIT_START_Y;
+    this.hidePreBossIntro();
     this.audio.playMusic("ending");
     this.hideClearResult();
     this.titleArt.visible = false;
@@ -1133,6 +1360,7 @@ export class GameScene {
   private beginStageClearPause() {
     this.state = "stageClearPause";
     this.stageClearTimer = 4.0;
+    this.hidePreBossIntro(false);
     this.audio.playMusic("clear");
     this.audio.clear();
     this.bullets.clear();
@@ -1185,6 +1413,7 @@ export class GameScene {
     this.clearTimer = 0;
     this.announcedBoss = false;
     this.bossPhase = 0;
+    this.hidePreBossIntro();
     this.audio.playMusic(this.getStageMusic());
     this.overlay.position.set(360, 460);
     this.overlay.text = `${this.currentStage.title.toUpperCase()}\n\n${this.currentStage.subtitle}`;
@@ -1239,6 +1468,7 @@ export class GameScene {
         this.addScore(5000);
         this.awardLife("BOSS BONUS");
         this.clearTimer = 0.8;
+        this.playBossPhaseVoice(this.bossPhase);
         this.audio.bossDefeated();
         this.dropBossItems(this.boss.pos.x, this.boss.pos.y);
       }
