@@ -1177,12 +1177,9 @@ export class GameScene {
 
   private refreshClearResultText(wasRecord: boolean) {
     this.clearStats.text = `${this.difficulty.label} Score ${this.score}\nPower Lv${this.powerLevel + 1} ${this.power}/${MAX_POWER}   Graze ${this.graze}\nBest ${this.currentHighScore}`;
-    this.clearHint.text =
-      this.clearInputTimer > 0
-        ? `${wasRecord ? "NEW RECORD" : "RUN COMPLETE"}\nPlease wait...`
-        : `${wasRecord ? "NEW RECORD" : "RUN COMPLETE"}${this.isFinalStage ? "" : "\nR to retry"}`;
+    this.clearHint.text = wasRecord ? "NEW RECORD" : "RUN COMPLETE";
     this.clearPrompt.text =
-      this.clearInputTimer > 0 ? "" : this.isFinalStage ? "Press Z / SPACE for ending" : "Z / SPACE to title";
+      this.clearInputTimer > 0 ? "Please wait..." : this.isFinalStage ? "Press Z / SPACE for ending" : "Z / SPACE to title";
   }
 
   private hideClearResult() {
@@ -1362,7 +1359,7 @@ export class GameScene {
     this.pressPromptBlinkTime += dt;
     const alpha = PRESS_PROMPT_MIN_ALPHA + (1 - PRESS_PROMPT_MIN_ALPHA) * (0.5 + Math.sin(this.pressPromptBlinkTime * PRESS_PROMPT_BLINK_SPEED) * 0.5);
     this.overlayPrompt.alpha = this.overlayPrompt.text ? alpha : 1;
-    this.clearPrompt.alpha = this.clearPrompt.text ? alpha : 1;
+    this.clearPrompt.alpha = this.clearPrompt.text && this.clearPrompt.text !== "Please wait..." ? alpha : 1;
     this.endingPrompt.alpha = this.endingPrompt.text ? alpha : 1;
   }
 
@@ -1473,8 +1470,8 @@ export class GameScene {
     this.clearFxTimer = 0;
     this.clearTitle.text = `${this.currentStage.title.toUpperCase()} CLEAR`;
     this.clearStats.text = `${this.difficulty.label} Score ${this.score}\nPower Lv${this.powerLevel + 1} ${this.power}/${MAX_POWER}   Graze ${this.graze}`;
-    this.clearHint.text = "NEXT STAGE\nGet ready";
-    this.clearPrompt.text = "";
+    this.clearHint.text = "NEXT STAGE";
+    this.clearPrompt.text = "Please wait...";
     this.updateClearResult(0);
   }
 
