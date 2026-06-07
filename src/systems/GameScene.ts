@@ -45,28 +45,41 @@ type VoiceSubtitleCue = {
 };
 const PRE_BOSS_SUBTITLES_BY_VOICE: Partial<Record<VoiceId, readonly VoiceSubtitleCue[]>> = {
   stage1PreBossBattle: [
-    { start: 0.0, end: 5.68, text: "Hmph. To make it this far, you have more courage than I expected." },
+    { start: 0.0, end: 2.8, text: "Hmph. To make it this far..." },
+    { start: 2.8, end: 5.68, text: "You have more courage than I expected." },
     { start: 5.68, end: 10.6, text: "I can see a strong will in your eyes." },
     { start: 10.6, end: 16.2, text: "But whether it is genuine, I do not yet know." },
     { start: 16.2, end: 18.6, text: "I am the Lunar Witch." },
-    { start: 18.6, end: 22.4, text: "Now, let us begin while the moon watches over us." }
+    { start: 18.6, end: 20.3, text: "Now, let us begin." },
+    { start: 20.3, end: 22.4, text: "The moon is watching over us." }
   ],
   stage2PreBossBattle: [
-    { start: 0.0, end: 7.32, text: "I have been waiting. The stars knew you would find your way here." },
-    { start: 7.32, end: 16.44, text: "But the future is not decided by prophecy alone. Show me that possibility with your own power." },
-    { start: 16.44, end: 22.4, text: "Now, are you ready to accept the guidance of the stars?" }
+    { start: 0.0, end: 2.4, text: "I have been waiting." },
+    { start: 2.4, end: 7.32, text: "The stars knew you would find your way here." },
+    { start: 7.32, end: 11.7, text: "The future is not decided by prophecy alone." },
+    { start: 11.7, end: 16.44, text: "Show me that possibility with your own power." },
+    { start: 16.44, end: 19.1, text: "Now, are you ready" },
+    { start: 19.1, end: 22.4, text: "to accept the guidance of the stars?" }
   ],
   stage3PreBossBattle: [
-    { start: 0.0, end: 6.14, text: "Welcome, traveler. I truly admire that you made it this far." },
-    { start: 6.14, end: 12.82, text: "To go farther, you need strength even the stars will recognize." },
-    { start: 12.82, end: 19.38, text: "Now, show me that radiance. I will answer with all my power." },
+    { start: 0.0, end: 2.2, text: "Welcome, traveler." },
+    { start: 2.2, end: 6.14, text: "I truly admire that you made it this far." },
+    { start: 6.14, end: 9.3, text: "To go farther," },
+    { start: 9.3, end: 12.82, text: "you need strength even the stars will recognize." },
+    { start: 12.82, end: 15.8, text: "Now, show me that radiance." },
+    { start: 15.8, end: 19.38, text: "I will answer with all my power." },
     { start: 19.38, end: 24.1, text: "Please, do not let that light fade." }
   ],
   stage4PreBossBattle: [
-    { start: 0.0, end: 6.0, text: "Welcome, challenger! First, I honor the power that brought you this far." },
-    { start: 6.0, end: 11.5, text: "But if you want to go on, you will have to surpass me!" },
-    { start: 11.5, end: 17.2, text: "This flame is a light that shines on life, and a power that burns everything away." },
-    { start: 17.2, end: 24.7, text: "Your resolve and my passion. Let us see which burns stronger!" }
+    { start: 0.0, end: 2.1, text: "Welcome, challenger!" },
+    { start: 2.1, end: 3.8, text: "First, I honor your power." },
+    { start: 3.8, end: 6.0, text: "It brought you this far." },
+    { start: 6.0, end: 8.5, text: "But if you want to go on," },
+    { start: 8.5, end: 11.5, text: "you will have to surpass me!" },
+    { start: 11.5, end: 14.4, text: "This flame is a light that shines on life." },
+    { start: 14.4, end: 17.2, text: "And a power that burns everything away." },
+    { start: 17.2, end: 20.4, text: "Your resolve and my passion." },
+    { start: 20.4, end: 24.7, text: "Let us see which burns stronger!" }
   ]
 };
 const AUTO_COLLECT_LINE_Y = 340;
