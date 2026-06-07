@@ -29,10 +29,15 @@ Music:
 - src/assets/audio/*.mp3
   - Generated with SUNO free plan and/or Stable Audio free plan.
 
+Voice clips:
+
+- src/assets/audio/voices/**/*.mp3
+  - Generated with ElevenLabs free plan.
+
 Sound effects:
 
 - src/assets/audio/sfx/*.wav
-  - Generated with ElevenLabs ElevenCreative free plan and/or Bfxr.
+  - Generated with ElevenLabs free plan and/or Bfxr.
 
 Asset Reuse Restrictions
 ------------------------
@@ -42,9 +47,9 @@ License. Do not assume that these assets may be reused, redistributed,
 commercialized, sublicensed, or incorporated into other projects under the
 same terms as the software code.
 
-Some music and sound effect files were generated with free-plan services.
-Those services may prohibit commercial use, require attribution, or impose
-other restrictions depending on the service, plan, and generation date.
+Some music, voice, and sound effect files were generated with free-plan
+services. Those services may prohibit commercial use, require attribution, or
+impose other restrictions depending on the service, plan, and generation date.
 Before reusing any generated media asset from this repository, review the
 current terms for the relevant service and obtain any rights or permissions
 required for your use case.

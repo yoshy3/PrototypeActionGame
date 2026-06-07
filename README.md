@@ -44,7 +44,8 @@ Development builds also expose quick-start debug keys on the title screen for bo
 
 - Four-stage vertical bullet-hell run: Moonlit shrine approach, Starlight crystal corridor, Asteroid spell belt, and Fire storm
 - Four boss encounters: Lunar Witch, Starlight Oracle, Cosmic Sorcerer, and Salamander
-- Five-phase boss spell patterns with petals, stars, split bullets, breakable shells, warning lasers, asteroid pressure, magma gates, and firestorm barrages
+- Pre-boss warning cut-ins with boss standing artwork, subtitles, stage-specific voice clips, music ducking, skip input, and battlefield cleanup before combat resumes
+- Five-phase boss spell patterns with petals, stars, split bullets, breakable shells, warning lasers, asteroid pressure, magma gates, cinder rain, flame wheels, and firestorm barrages
 - Enemy waves with moth, crystal, astral familiar, dragon, and fire familiar sprites using fan, cross, snipe, wheel, laser, split-fan, breakable-wall, flame, and homing-flame patterns
 - Casual, Normal, and Lunatic difficulty presets that scale enemy HP, boss HP, bullet speed, firing delay, and score rewards
 - Player movement, focused hitbox display, multi-level shots, lives, bombs, invincibility after damage, extends, score, pause, clear, game over, ending, and credit roll states
@@ -52,8 +53,8 @@ Development builds also expose quick-start debug keys on the title screen for bo
 - Collectible score and bomb items, Lv1-Lv4 shot power, and an upper-screen auto-collect line
 - Per-difficulty local high scores saved in browser storage, with clear and game-over result summaries
 - Stage progress bar, boss HP and phase markers, warning banners, screen shake, bomb flash, floating score text, and clear-result effects
-- Animated sprite sheets for player, enemies, bosses, asteroids, fire familiars, and fire projectiles, plus title and ending artwork
-- MP3 background music for title, each stage, boss battles, clear, game over, and ending, with WAV sound effects and a mute toggle
+- Animated sprite sheets for player, enemies, bosses, asteroids, fire familiars, and fire projectiles, plus title, boss cut-in, and ending artwork
+- MP3 background music for title, each stage, regular boss battles, final boss, clear, game over, and ending, with WAV sound effects, voiced boss cues, a mute toggle, and pause-aware audio levels
 
 ## Tech Notes
 
@@ -61,8 +62,11 @@ Development builds also expose quick-start debug keys on the title screen for bo
 - Source entry point: `src/main.ts`
 - Core game orchestration: `src/systems/GameScene.ts`
 - Stage scripting: `src/systems/StageScript.ts`
+- Boss phase behavior and spell patterns: `src/systems/Boss.ts`
 - Character and bullet visuals: `src/systems/VisualFactory.ts`
-- Audio playback and fallback synthesized SFX: `src/systems/AudioSystem.ts`
+- Keyboard, pointer, touch, and gamepad input: `src/systems/Input.ts`
+- Audio playback, asset-backed SFX, voice clips, music ducking, and fallback synthesized SFX: `src/systems/AudioSystem.ts`
+- Generated images and audio live under `src/assets/**`; see `NOTICE` before reusing them outside this project
 
 ## License And Credits
 
