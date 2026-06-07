@@ -50,6 +50,23 @@ const PRE_BOSS_SUBTITLES_BY_VOICE: Partial<Record<VoiceId, readonly VoiceSubtitl
     { start: 10.6, end: 16.2, text: "But whether it is genuine, I do not yet know." },
     { start: 16.2, end: 18.6, text: "I am the Lunar Witch." },
     { start: 18.6, end: 22.4, text: "Now, let us begin while the moon watches over us." }
+  ],
+  stage2PreBossBattle: [
+    { start: 0.0, end: 7.32, text: "I have been waiting. The stars knew you would find your way here." },
+    { start: 7.32, end: 16.44, text: "But the future is not decided by prophecy alone. Show me that possibility with your own power." },
+    { start: 16.44, end: 22.4, text: "Now, are you ready to accept the guidance of the stars?" }
+  ],
+  stage3PreBossBattle: [
+    { start: 0.0, end: 6.14, text: "Welcome, traveler. I truly admire that you made it this far." },
+    { start: 6.14, end: 12.82, text: "To go farther, you need strength even the stars will recognize." },
+    { start: 12.82, end: 19.38, text: "Now, show me that radiance. I will answer with all my power." },
+    { start: 19.38, end: 24.1, text: "Please, do not let that light fade." }
+  ],
+  stage4PreBossBattle: [
+    { start: 0.0, end: 6.0, text: "Welcome, challenger! First, I honor the power that brought you this far." },
+    { start: 6.0, end: 11.5, text: "But if you want to go on, you will have to surpass me!" },
+    { start: 11.5, end: 17.2, text: "This flame is a light that shines on life, and a power that burns everything away." },
+    { start: 17.2, end: 24.7, text: "Your resolve and my passion. Let us see which burns stronger!" }
   ]
 };
 const AUTO_COLLECT_LINE_Y = 340;
