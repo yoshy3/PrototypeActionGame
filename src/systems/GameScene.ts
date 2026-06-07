@@ -38,6 +38,20 @@ const PHASE_VOICES_BY_STAGE: Partial<Record<number, readonly VoiceId[]>> = {
   3: ["stage3Phase1", "stage3Phase2", "stage3Phase3", "stage3Phase4", "stage3Phase5"],
   4: ["stage4Phase1", "stage4Phase2", "stage4Phase3", "stage4Phase4", "stage4Phase5"]
 };
+type VoiceSubtitleCue = {
+  start: number;
+  end: number;
+  text: string;
+};
+const PRE_BOSS_SUBTITLES_BY_VOICE: Partial<Record<VoiceId, readonly VoiceSubtitleCue[]>> = {
+  stage1PreBossBattle: [
+    { start: 0.0, end: 5.68, text: "Hmph. To make it this far, you have more courage than I expected." },
+    { start: 5.68, end: 10.6, text: "I can see a strong will in your eyes." },
+    { start: 10.6, end: 16.2, text: "But whether it is genuine, I do not yet know." },
+    { start: 16.2, end: 18.6, text: "I am the Lunar Witch." },
+    { start: 18.6, end: 22.4, text: "Now, let us begin while the moon watches over us." }
+  ]
+};
 const AUTO_COLLECT_LINE_Y = 340;
 const ITEM_COLLECT_RADIUS = 40;
 const ASTEROID_HIT_RADIUS_SCALE = 0.52;
@@ -191,6 +205,19 @@ export class GameScene {
       stroke: { color: 0x080412, width: 5 }
     }
   });
+  private readonly preBossIntroSubtitle = new Text({
+    text: "",
+    style: {
+      fill: 0xffffff,
+      fontSize: 20,
+      align: "center",
+      fontWeight: "700",
+      letterSpacing: 0,
+      wordWrap: true,
+      wordWrapWidth: 600,
+      stroke: { color: 0x080412, width: 6 }
+    }
+  });
   private readonly pauseTitleProgress = new Graphics();
   private readonly bossBar = new Graphics();
   private readonly stageProgress = new Graphics();
@@ -217,6 +244,7 @@ export class GameScene {
   private bossAsteroidTimer = 0;
   private firestormTimer = 0;
   private preBossIntroTimer = 0;
+  private preBossSubtitleTimer = 0;
   private preBossIntroActive = false;
   private preBossIntroFinished = false;
   private preBossIntroWaitingForVoice = false;
@@ -291,13 +319,16 @@ export class GameScene {
     this.preBossIntroCaption.anchor.set(0, 0.5);
     this.preBossIntroCaption.position.set(60, 442);
     this.preBossIntroPrompt.anchor.set(0, 0.5);
-    this.preBossIntroPrompt.position.set(60, 532);
+    this.preBossIntroPrompt.position.set(60, 566);
+    this.preBossIntroSubtitle.anchor.set(0.5, 0.5);
+    this.preBossIntroSubtitle.position.set(360, 820);
     this.preBossIntro.addChild(
       this.preBossIntroShade,
       this.preBossIntroStripe,
       this.preBossIntroStanding,
       this.preBossIntroTitle,
       this.preBossIntroCaption,
+      this.preBossIntroSubtitle,
       this.preBossIntroPrompt
     );
     this.endingHint.anchor.set(0.5);
@@ -563,6 +594,7 @@ export class GameScene {
     this.bossAsteroidTimer = 0;
     this.firestormTimer = 0;
     this.preBossIntroTimer = 0;
+    this.preBossSubtitleTimer = 0;
     this.preBossIntroActive = false;
     this.preBossIntroWaitingForVoice = false;
     this.preBossIntroFinished = false;
@@ -651,6 +683,7 @@ export class GameScene {
 
   private beginPreBossIntro() {
     this.preBossIntroTimer = 0;
+    this.preBossSubtitleTimer = 0;
     this.preBossIntroActive = true;
     this.preBossIntroFinished = false;
     this.preBossIntroWaitingForVoice = this.currentStage.preBossVoice !== undefined;
@@ -666,6 +699,7 @@ export class GameScene {
     this.preBossIntroTitle.text = "WARNING";
     this.preBossIntroCaption.text = this.currentStage.warningText;
     this.preBossIntroPrompt.text = "Esc / Start to skip";
+    this.preBossIntroSubtitle.text = "";
     this.drawPreBossIntro();
     this.preBossIntro.visible = true;
     this.preBossIntro.alpha = 0;
@@ -687,6 +721,7 @@ export class GameScene {
     }
 
     this.preBossIntroTimer += dt;
+    this.preBossSubtitleTimer += dt;
     const fadeIn = Math.min(1, this.preBossIntroTimer / PRE_BOSS_INTRO_FADE_TIME);
     const fadeOut = this.preBossIntroWaitingForVoice
       ? 1
@@ -696,6 +731,7 @@ export class GameScene {
       PRESS_PROMPT_MIN_ALPHA + (1 - PRESS_PROMPT_MIN_ALPHA) * (0.5 + Math.sin(this.preBossIntroTimer * PRESS_PROMPT_BLINK_SPEED) * 0.5);
     this.preBossIntroStanding.x = 500 + Math.sin(this.preBossIntroTimer * 1.6) * 4;
     this.preBossIntroStanding.y = 498 + Math.cos(this.preBossIntroTimer * 1.2) * 3;
+    this.updatePreBossSubtitle();
 
     if (!this.preBossIntroWaitingForVoice && this.preBossIntroTimer >= PRE_BOSS_INTRO_DURATION) {
       this.finishPreBossIntro();
@@ -706,9 +742,11 @@ export class GameScene {
     this.preBossIntroActive = false;
     this.preBossIntroFinished = true;
     this.preBossIntroWaitingForVoice = false;
+    this.preBossSubtitleTimer = 0;
     this.preBossIntro.visible = false;
     this.preBossIntro.alpha = 0;
     this.preBossIntroPrompt.alpha = 1;
+    this.preBossIntroSubtitle.text = "";
   }
 
   private hidePreBossIntro(stopVoice = true) {
@@ -716,12 +754,26 @@ export class GameScene {
       this.audio.stopVoice();
     }
     this.preBossIntroTimer = 0;
+    this.preBossSubtitleTimer = 0;
     this.preBossIntroActive = false;
     this.preBossIntroFinished = false;
     this.preBossIntroWaitingForVoice = false;
     this.preBossIntro.visible = false;
     this.preBossIntro.alpha = 0;
     this.preBossIntroPrompt.alpha = 1;
+    this.preBossIntroSubtitle.text = "";
+  }
+
+  private updatePreBossSubtitle() {
+    const voice = this.currentStage.preBossVoice;
+    const subtitles = voice ? PRE_BOSS_SUBTITLES_BY_VOICE[voice] : undefined;
+    if (!subtitles || !this.preBossIntroWaitingForVoice) {
+      this.preBossIntroSubtitle.text = "";
+      return;
+    }
+
+    const cue = subtitles.find((entry) => this.preBossSubtitleTimer >= entry.start && this.preBossSubtitleTimer < entry.end);
+    this.preBossIntroSubtitle.text = cue?.text ?? "";
   }
 
   private drawPreBossIntro() {
