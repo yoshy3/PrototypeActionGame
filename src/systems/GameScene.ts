@@ -739,7 +739,7 @@ export class GameScene {
         }
         this.preBossIntroWaitingForVoice = false;
         this.preBossIntroTimer = Math.max(0, PRE_BOSS_INTRO_DURATION - PRE_BOSS_INTRO_FADE_TIME);
-      });
+      }, true);
     }
   }
 

@@ -99,7 +99,7 @@ type AssetMusicTrack = {
 
 type MusicTrack = GeneratedMusicTrack | AssetMusicTrack;
 const VOICE_VOLUME = 0.42;
-const VOICE_MUSIC_DUCK_SCALE = 0.45;
+const VOICE_MUSIC_DUCK_SCALE = 0.25;
 type SfxId =
   | "shoot"
   | "defeat"
@@ -226,6 +226,7 @@ export class AudioSystem {
   private assetMusic: HTMLAudioElement | null = null;
   private voice: HTMLAudioElement | null = null;
   private voiceEnded: (() => void) | null = null;
+  private voiceDucksMusic = false;
   private sfxBuffers = new Map<SfxId, AudioBuffer | null>();
   private sfxLoading = new Map<SfxId, Promise<AudioBuffer | null>>();
   private musicStep = 0;
@@ -326,7 +327,7 @@ export class AudioSystem {
     this.refreshMusicVolume();
   }
 
-  playVoice(id: VoiceId, onEnded?: () => void) {
+  playVoice(id: VoiceId, onEnded?: () => void, duckMusic = false) {
     this.stopVoice();
 
     if (this.muted) {
@@ -338,6 +339,7 @@ export class AudioSystem {
     voice.preload = "auto";
     this.voice = voice;
     this.voiceEnded = onEnded ?? null;
+    this.voiceDucksMusic = duckMusic;
     this.refreshVoiceVolume();
     this.refreshMusicVolume();
 
@@ -348,6 +350,7 @@ export class AudioSystem {
       this.voice = null;
       const callback = this.voiceEnded;
       this.voiceEnded = null;
+      this.voiceDucksMusic = false;
       this.refreshMusicVolume();
       callback?.();
     };
@@ -374,6 +377,7 @@ export class AudioSystem {
     }
     this.voice = null;
     this.voiceEnded = null;
+    this.voiceDucksMusic = false;
     this.refreshMusicVolume();
   }
 
@@ -743,7 +747,7 @@ export class AudioSystem {
 
     const track = musicTracks[this.currentTrack];
     const pausedScale = this.paused ? 0.42 : 1;
-    const voiceScale = this.voice && !this.voice.paused ? VOICE_MUSIC_DUCK_SCALE : 1;
+    const voiceScale = this.voiceDucksMusic && this.voice && !this.voice.paused ? VOICE_MUSIC_DUCK_SCALE : 1;
     if (this.assetMusic && track.mode === "asset") {
       this.assetMusic.volume = this.muted ? 0 : Math.min(1, track.volume * pausedScale * voiceScale);
       return;
