@@ -33,6 +33,7 @@ npm.cmd run preview
 - Focus / slow movement: Shift or gamepad RB
 - Shoot: Z, Space, or gamepad A
 - Bomb: X or gamepad X
+- Virtual gamepad: use the PAD toggle to show or hide touch controls; swipe from anywhere on the left side to move, and use Shoot to confirm menus and result screens
 - Mute sound: M
 - Pause: Esc or gamepad Start
 - Pause menu: Esc/Start to resume, R to retry, hold Z/Space to return to title

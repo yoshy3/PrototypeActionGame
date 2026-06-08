@@ -1,6 +1,7 @@
 export class Input {
   private readonly keyboardKeys = new Set<string>();
   private readonly gamepadKeys = new Set<string>();
+  private readonly virtualKeys = new Set<string>();
   private readonly pressed = new Set<string>();
   private pointerPressed = false;
   private readonly gamepadAxisThreshold = 0.45;
@@ -24,6 +25,10 @@ export class Input {
 
     window.addEventListener("pointerdown", () => {
       this.pointerPressed = true;
+    });
+
+    window.addEventListener("blur", () => {
+      this.clearVirtualKeys();
     });
   }
 
@@ -80,6 +85,22 @@ export class Input {
     return this.pointerPressed || this.pressed.size > 0;
   }
 
+  setVirtualKey(key: string, down: boolean) {
+    const normalized = this.normalize(key);
+    if (down) {
+      if (!this.isKeyDown(normalized)) {
+        this.pressed.add(normalized);
+      }
+      this.virtualKeys.add(normalized);
+    } else {
+      this.virtualKeys.delete(normalized);
+    }
+  }
+
+  clearVirtualKeys() {
+    this.virtualKeys.clear();
+  }
+
   endFrame() {
     this.pressed.clear();
     this.pointerPressed = false;
@@ -93,7 +114,7 @@ export class Input {
   }
 
   private isKeyDown(key: string) {
-    return this.keyboardKeys.has(key) || this.gamepadKeys.has(key);
+    return this.keyboardKeys.has(key) || this.gamepadKeys.has(key) || this.virtualKeys.has(key);
   }
 
   private addGamepadButton(gamepad: Gamepad, buttonIndex: number, key: string) {

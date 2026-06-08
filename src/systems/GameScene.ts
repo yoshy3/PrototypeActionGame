@@ -106,7 +106,6 @@ type StartOptions = {
 
 export class GameScene {
   private readonly audio = new AudioSystem();
-  private readonly input = new Input();
   private readonly root = new Container();
   private readonly background = new Graphics();
   private readonly titleArt = new Sprite(Texture.EMPTY);
@@ -287,7 +286,10 @@ export class GameScene {
   private pauseTitleHoldTimer = 0;
   private endingCreditScrollY = ENDING_CREDIT_START_Y;
 
-  constructor(private readonly app: Application) {}
+  constructor(
+    private readonly app: Application,
+    private readonly input: Input
+  ) {}
 
   async init() {
     this.highScores = this.loadHighScores();

@@ -1,6 +1,8 @@
 import { Application } from "pixi.js";
 import "./style.css";
 import { GameScene } from "./systems/GameScene";
+import { Input } from "./systems/Input";
+import { VirtualGamepad } from "./systems/VirtualGamepad";
 import { loadCharacterAssets } from "./systems/VisualFactory";
 
 const showError = (err: any) => {
@@ -50,7 +52,10 @@ async function start() {
 
     await loadCharacterAssets();
 
-    const scene = new GameScene(app);
+    const input = new Input();
+    new VirtualGamepad(input);
+
+    const scene = new GameScene(app, input);
     await scene.init();
 
     app.ticker.add((ticker) => {
