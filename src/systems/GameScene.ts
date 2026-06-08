@@ -50,8 +50,7 @@ const PRE_BOSS_SUBTITLES_BY_VOICE: Partial<Record<VoiceId, readonly VoiceSubtitl
     { start: 5.68, end: 10.6, text: "I can see a strong will in your eyes." },
     { start: 10.6, end: 16.2, text: "But whether it is genuine, I do not yet know." },
     { start: 16.2, end: 18.6, text: "I am the Lunar Witch." },
-    { start: 18.6, end: 20.3, text: "Now, let us begin." },
-    { start: 20.3, end: 22.4, text: "The moon is watching over us." }
+    { start: 18.6, end: 22.4, text: "Now, let us begin while the moon watches over us." }
   ],
   stage2PreBossBattle: [
     { start: 0.0, end: 1.9, text: "I have been waiting." },
