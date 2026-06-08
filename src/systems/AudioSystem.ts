@@ -100,6 +100,8 @@ type AssetMusicTrack = {
 type MusicTrack = GeneratedMusicTrack | AssetMusicTrack;
 const VOICE_VOLUME = 0.42;
 const VOICE_MUSIC_DUCK_SCALE = 0.25;
+const SILENT_AUDIO_URL =
+  "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABAAZGF0YQQAAAAAAA==";
 type SfxId =
   | "shoot"
   | "defeat"
@@ -225,8 +227,10 @@ export class AudioSystem {
   private currentTrack: MusicTrackId | null = null;
   private assetMusic: HTMLAudioElement | null = null;
   private voice: HTMLAudioElement | null = null;
+  private voiceActive = false;
   private voiceEnded: (() => void) | null = null;
   private voiceDucksMusic = false;
+  private voicePlaybackId = 0;
   private sfxBuffers = new Map<SfxId, AudioBuffer | null>();
   private sfxLoading = new Map<SfxId, Promise<AudioBuffer | null>>();
   private musicStep = 0;
@@ -254,6 +258,8 @@ export class AudioSystem {
     }
 
     void this.context.resume();
+    this.ensureAssetMusicElement();
+    this.unlockMediaElement(this.ensureVoiceElement());
     this.preloadSfx();
     if (this.requestedTrack) {
       this.startMusic(this.requestedTrack);
@@ -271,9 +277,11 @@ export class AudioSystem {
         this.assetMusic?.play().catch((err) => {
           console.warn("Audio autoplay or resume blocked:", err);
         });
-        this.voice?.play().catch((err) => {
-          console.warn("Voice autoplay or resume blocked:", err);
-        });
+        if (this.voiceActive) {
+          this.voice?.play().catch((err) => {
+            console.warn("Voice autoplay or resume blocked:", err);
+          });
+        }
       }
     }
     return this.muted;
@@ -299,11 +307,8 @@ export class AudioSystem {
       window.clearInterval(this.musicTimer);
       this.musicTimer = 0;
     }
-    if (this.assetMusic) {
-      this.assetMusic.pause();
-      this.assetMusic.currentTime = 0;
-      this.assetMusic = null;
-    }
+    this.assetMusic?.pause();
+    this.resetMediaTime(this.assetMusic);
     if (this.musicGain && this.context) {
       this.musicGain.gain.setTargetAtTime(0, this.context.currentTime, 0.04);
     }
@@ -313,7 +318,7 @@ export class AudioSystem {
     this.paused = paused;
     this.refreshMusicVolume();
     this.refreshVoiceVolume();
-    if (!this.voice || this.muted) {
+    if (!this.voice || !this.voiceActive || this.muted) {
       return;
     }
     if (paused) {
@@ -335,19 +340,28 @@ export class AudioSystem {
       return;
     }
 
-    const voice = new Audio(voiceUrls[id]);
-    voice.preload = "auto";
+    const voice = this.ensureVoiceElement();
+    const playbackId = ++this.voicePlaybackId;
+    voice.pause();
+    if (voice.src !== voiceUrls[id]) {
+      voice.src = voiceUrls[id];
+      voice.load();
+    }
+    this.resetMediaTime(voice);
     this.voice = voice;
+    this.voiceActive = true;
     this.voiceEnded = onEnded ?? null;
     this.voiceDucksMusic = duckMusic;
     this.refreshVoiceVolume();
     this.refreshMusicVolume();
 
     const finish = () => {
-      if (this.voice !== voice) {
+      if (this.voice !== voice || this.voicePlaybackId !== playbackId) {
         return;
       }
-      this.voice = null;
+      voice.onended = null;
+      voice.onerror = null;
+      this.voiceActive = false;
       const callback = this.voiceEnded;
       this.voiceEnded = null;
       this.voiceDucksMusic = false;
@@ -355,15 +369,11 @@ export class AudioSystem {
       callback?.();
     };
 
-    voice.addEventListener("ended", finish, { once: true });
-    voice.addEventListener(
-      "error",
-      () => {
-        console.warn("Voice playback failed:", voiceUrls[id]);
-        finish();
-      },
-      { once: true }
-    );
+    voice.onended = finish;
+    voice.onerror = () => {
+      console.warn("Voice playback failed:", voiceUrls[id]);
+      finish();
+    };
     voice.play().catch((err) => {
       console.warn("Voice autoplay blocked:", err);
       finish();
@@ -371,11 +381,14 @@ export class AudioSystem {
   }
 
   stopVoice() {
+    this.voicePlaybackId += 1;
     if (this.voice) {
       this.voice.pause();
-      this.voice.currentTime = 0;
+      this.resetMediaTime(this.voice);
+      this.voice.onended = null;
+      this.voice.onerror = null;
     }
-    this.voice = null;
+    this.voiceActive = false;
     this.voiceEnded = null;
     this.voiceDucksMusic = false;
     this.refreshMusicVolume();
@@ -660,21 +673,83 @@ export class AudioSystem {
       this.musicGain.gain.setTargetAtTime(0, this.context.currentTime, 0.04);
     }
 
-    if (this.assetMusic?.src !== track.url) {
-      if (this.assetMusic) {
-        this.assetMusic.pause();
-      }
-      this.assetMusic = new Audio(track.url);
-      this.assetMusic.loop = true;
-      this.assetMusic.preload = "auto";
+    const assetMusic = this.ensureAssetMusicElement();
+    if (assetMusic.src !== track.url) {
+      assetMusic.pause();
+      assetMusic.src = track.url;
+      assetMusic.load();
+      this.resetMediaTime(assetMusic);
     }
 
     this.currentTrack = trackId;
     this.refreshMusicVolume();
     if (!this.muted) {
-      this.assetMusic.play().catch((err) => {
+      assetMusic.play().catch((err) => {
         console.warn("Audio autoplay blocked:", err);
       });
+    }
+  }
+
+  private ensureAssetMusicElement() {
+    if (!this.assetMusic) {
+      this.assetMusic = new Audio();
+      this.assetMusic.loop = true;
+      this.assetMusic.preload = "auto";
+    }
+    return this.assetMusic;
+  }
+
+  private ensureVoiceElement() {
+    if (!this.voice) {
+      this.voice = new Audio();
+      this.voice.preload = "auto";
+    }
+    return this.voice;
+  }
+
+  private unlockMediaElement(element: HTMLAudioElement) {
+    if (element.dataset.audioUnlocked === "true" || element.dataset.audioUnlocked === "pending") {
+      return;
+    }
+
+    element.dataset.audioUnlocked = "pending";
+    const originalSrc = element.src;
+    const originalMuted = element.muted;
+    if (!originalSrc) {
+      element.src = SILENT_AUDIO_URL;
+    }
+    element.muted = true;
+    element
+      .play()
+      .then(() => {
+        element.dataset.audioUnlocked = "true";
+        if (!originalSrc && element.src === SILENT_AUDIO_URL) {
+          element.pause();
+          this.resetMediaTime(element);
+          element.removeAttribute("src");
+          element.load();
+        }
+        element.muted = originalMuted;
+      })
+      .catch(() => {
+        delete element.dataset.audioUnlocked;
+        element.muted = originalMuted;
+        if (!originalSrc && element.src === SILENT_AUDIO_URL) {
+          element.removeAttribute("src");
+          element.load();
+        }
+      });
+  }
+
+  private resetMediaTime(element: HTMLMediaElement | null) {
+    if (!element) {
+      return;
+    }
+
+    try {
+      element.currentTime = 0;
+    } catch {
+      // Safari can reject seeks while a newly assigned media source is still loading.
     }
   }
 
