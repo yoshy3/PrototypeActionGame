@@ -34,7 +34,12 @@ export type VoiceId =
   | "stage4Phase2"
   | "stage4Phase3"
   | "stage4Phase4"
-  | "stage4Phase5";
+  | "stage4Phase5"
+  | "playerDefeated"
+  | "playerExtend"
+  | "playerGameOver"
+  | "playerPowerUp"
+  | "playerStart";
 
 const titleMusicUrl = new URL("../assets/audio/title.mp3", import.meta.url).href;
 const stageMusicUrl = new URL("../assets/audio/stage.mp3", import.meta.url).href;
@@ -48,14 +53,17 @@ const endingMusicUrl = new URL("../assets/audio/ending.mp3", import.meta.url).hr
 const gameOverMusicUrl = new URL("../assets/audio/game-over.mp3", import.meta.url).href;
 const shootSfxUrl = new URL("../assets/audio/sfx/shoot.wav", import.meta.url).href;
 const defeatSfxUrl = new URL("../assets/audio/sfx/defeat.wav", import.meta.url).href;
-const defeatedSfxUrl = new URL("../assets/audio/sfx/defeated.wav", import.meta.url).href;
 const bombSfxUrl = new URL("../assets/audio/sfx/bomb.wav", import.meta.url).href;
 const spellSwitchSfxUrl = new URL("../assets/audio/sfx/spell-switch.wav", import.meta.url).href;
 const warningSfxUrl = new URL("../assets/audio/sfx/warning.wav", import.meta.url).href;
 const getItemSfxUrl = new URL("../assets/audio/sfx/get-item.wav", import.meta.url).href;
-const powerUpSfxUrl = new URL("../assets/audio/sfx/power-up.wav", import.meta.url).href;
 const bossAppearSfxUrl = new URL("../assets/audio/sfx/boss-appear.wav", import.meta.url).href;
 const defeatBossSfxUrl = new URL("../assets/audio/sfx/defeat-boss.wav", import.meta.url).href;
+const playerDefeatedVoiceUrl = new URL("../assets/audio/voices/player/defeated.mp3", import.meta.url).href;
+const playerExtendVoiceUrl = new URL("../assets/audio/voices/player/extend.mp3", import.meta.url).href;
+const playerGameOverVoiceUrl = new URL("../assets/audio/voices/player/game-over.mp3", import.meta.url).href;
+const playerPowerUpVoiceUrl = new URL("../assets/audio/voices/player/power-up.mp3", import.meta.url).href;
+const playerStartVoiceUrl = new URL("../assets/audio/voices/player/start.mp3", import.meta.url).href;
 const stage1PreBossBattleVoiceUrl = new URL("../assets/audio/voices/stage1/pre-boss-battle.mp3", import.meta.url).href;
 const stage1Phase1VoiceUrl = new URL("../assets/audio/voices/stage1/phase1.mp3", import.meta.url).href;
 const stage1Phase2VoiceUrl = new URL("../assets/audio/voices/stage1/phase2.mp3", import.meta.url).href;
@@ -105,12 +113,10 @@ const SILENT_AUDIO_URL =
 type SfxId =
   | "shoot"
   | "defeat"
-  | "defeated"
   | "bomb"
   | "spellSwitch"
   | "warning"
   | "getItem"
-  | "powerUp"
   | "bossAppear"
   | "defeatBoss";
 
@@ -170,19 +176,16 @@ const musicTracks: Record<MusicTrackId, MusicTrack> = {
 const sfxUrls: Record<SfxId, string> = {
   shoot: shootSfxUrl,
   defeat: defeatSfxUrl,
-  defeated: defeatedSfxUrl,
   bomb: bombSfxUrl,
   spellSwitch: spellSwitchSfxUrl,
   warning: warningSfxUrl,
   getItem: getItemSfxUrl,
-  powerUp: powerUpSfxUrl,
   bossAppear: bossAppearSfxUrl,
   defeatBoss: defeatBossSfxUrl
 };
 
 const sfxVolumes: Partial<Record<SfxId, number>> = {
   defeat: 2,
-  defeated: 2,
   getItem: 0.5
 };
 
@@ -210,8 +213,21 @@ const voiceUrls: Record<VoiceId, string> = {
   stage4Phase2: stage4Phase2VoiceUrl,
   stage4Phase3: stage4Phase3VoiceUrl,
   stage4Phase4: stage4Phase4VoiceUrl,
-  stage4Phase5: stage4Phase5VoiceUrl
+  stage4Phase5: stage4Phase5VoiceUrl,
+  playerDefeated: playerDefeatedVoiceUrl,
+  playerExtend: playerExtendVoiceUrl,
+  playerGameOver: playerGameOverVoiceUrl,
+  playerPowerUp: playerPowerUpVoiceUrl,
+  playerStart: playerStartVoiceUrl
 };
+
+const playerVoiceIds = new Set<VoiceId>([
+  "playerDefeated",
+  "playerExtend",
+  "playerGameOver",
+  "playerPowerUp",
+  "playerStart"
+]);
 
 export class AudioSystem {
   private context: AudioContext | null = null;
@@ -227,6 +243,7 @@ export class AudioSystem {
   private currentTrack: MusicTrackId | null = null;
   private assetMusic: HTMLAudioElement | null = null;
   private voice: HTMLAudioElement | null = null;
+  private voiceId: VoiceId | null = null;
   private voiceActive = false;
   private voiceEnded: (() => void) | null = null;
   private voiceDucksMusic = false;
@@ -333,6 +350,10 @@ export class AudioSystem {
   }
 
   playVoice(id: VoiceId, onEnded?: () => void, duckMusic = false) {
+    if (this.voiceActive && this.voiceId && !playerVoiceIds.has(this.voiceId) && playerVoiceIds.has(id)) {
+      return;
+    }
+
     this.stopVoice();
 
     if (this.muted) {
@@ -349,6 +370,7 @@ export class AudioSystem {
     }
     this.resetMediaTime(voice);
     this.voice = voice;
+    this.voiceId = id;
     this.voiceActive = true;
     this.voiceEnded = onEnded ?? null;
     this.voiceDucksMusic = duckMusic;
@@ -362,6 +384,7 @@ export class AudioSystem {
       voice.onended = null;
       voice.onerror = null;
       this.voiceActive = false;
+      this.voiceId = null;
       const callback = this.voiceEnded;
       this.voiceEnded = null;
       this.voiceDucksMusic = false;
@@ -389,6 +412,7 @@ export class AudioSystem {
       this.voice.onerror = null;
     }
     this.voiceActive = false;
+    this.voiceId = null;
     this.voiceEnded = null;
     this.voiceDucksMusic = false;
     this.refreshMusicVolume();
@@ -417,12 +441,7 @@ export class AudioSystem {
   }
 
   playerHit() {
-    if (this.playSfx("defeated")) {
-      return;
-    }
-    this.tone(150, 0.28, "sawtooth", 0.16, -90);
-    this.tone(92, 0.34, "triangle", 0.1, -30);
-    this.noise(0.18, 0.11);
+    this.playVoice("playerDefeated");
   }
 
   graze() {
@@ -489,12 +508,19 @@ export class AudioSystem {
   }
 
   powerUp() {
-    if (this.playSfx("powerUp")) {
-      return;
-    }
-    this.tone(392, 0.08, "triangle", 0.1, 80);
-    window.setTimeout(() => this.tone(523.25, 0.08, "triangle", 0.1, 80), 75);
-    window.setTimeout(() => this.tone(783.99, 0.18, "triangle", 0.11, 160), 150);
+    this.playVoice("playerPowerUp");
+  }
+
+  extend() {
+    this.playVoice("playerExtend");
+  }
+
+  gameStart() {
+    this.playVoice("playerStart");
+  }
+
+  gameOver() {
+    this.playVoice("playerGameOver", undefined, true);
   }
 
   bossDefeated() {

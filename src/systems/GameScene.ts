@@ -576,6 +576,7 @@ export class GameScene {
       this.state = "gameover";
       this.hidePreBossIntro();
       this.audio.playMusic("gameover");
+      this.audio.gameOver();
       this.finishRun("GAME OVER");
     } else if (this.boss && !this.boss.alive && this.clearTimer <= 0) {
       if (this.currentStageIndex < stages.length - 1) {
@@ -662,6 +663,7 @@ export class GameScene {
     } else if (this.currentStageIndex > 0) {
       this.showBanner(`${this.currentStage.title.toUpperCase()}\nFull power debug start`, 1.4);
     }
+    this.audio.gameStart();
   }
 
   private showTitle() {
@@ -1444,6 +1446,9 @@ export class GameScene {
     this.player.addLife();
     this.floatText("+1 LIFE", this.player.pos.x, this.player.pos.y - 48, 0xfff4a8);
     this.showBanner(label, 1.0);
+    if (label === "EXTEND") {
+      this.audio.extend();
+    }
   }
 
   private beginStageClearPause() {
