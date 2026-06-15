@@ -102,8 +102,8 @@ export class Player implements Actor {
     this.body.reset("idle");
   }
 
-  reset() {
-    this.hp = 3;
+  reset(difficultyId?: string) {
+    this.hp = difficultyId === "beginner" ? 5 : 3;
     this.alive = true;
     this.invincible = 2;
     this.pos.x = 360;

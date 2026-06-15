@@ -253,7 +253,7 @@ export class GameScene {
   private asteroidIndex = 0;
   private boss: Boss | null = null;
   private score = 0;
-  private highScores: HighScores = { casual: 0, normal: 0, lunatic: 0 };
+  private highScores: HighScores = { beginner: 0, casual: 0, normal: 0, lunatic: 0 };
   private graze = 0;
   private power = 0;
   private bombs = 2;
@@ -614,7 +614,7 @@ export class GameScene {
     this.asteroidIndex = bossDebug ? (this.currentStage.obstacles?.length ?? 0) : 0;
     this.score = 0;
     this.graze = 0;
-    this.power = bossDebug || this.currentStageIndex > 0 ? MAX_POWER : 0;
+    this.power = bossDebug || this.currentStageIndex > 0 || this.difficulty.id === "beginner" ? MAX_POWER : 0;
     this.bombs = 2;
     this.nextExtendScore = FIRST_EXTEND_SCORE;
     this.clearTimer = 0;
@@ -654,7 +654,7 @@ export class GameScene {
     }
     this.asteroids.length = 0;
 
-    this.player.reset();
+    this.player.reset(this.difficulty.id);
     if (!this.playfield.children.includes(this.player.container)) {
       this.playfield.addChild(this.player.container);
     }
@@ -686,11 +686,11 @@ export class GameScene {
     this.asteroids.length = 0;
     this.boss?.container.destroy();
     this.boss = null;
-    this.player.reset();
+    this.player.reset(this.difficulty.id);
     this.hideClearResult();
     this.hideEnding();
     this.overlay.position.set(360, 560);
-    this.overlay.text = `Difficulty: ${this.difficulty.label}\nVersion ${APP_VERSION}\n\nLeft/Right or 1-3 to change${
+    this.overlay.text = `Difficulty: ${this.difficulty.label}\nVersion ${APP_VERSION}\n\nLeft/Right or 1-4 to change${
       DEV_BOSS_START_ENABLED ? "\nB: Stage 1 boss   V/C/F: Stage 2/3/4\nN/G/H: Stage 2/3/4 boss   E: Ending" : ""
     }`;
     this.setOverlayPrompt("Z / SPACE to start", this.getOverlayBottom() + 44);
@@ -1036,7 +1036,9 @@ export class GameScene {
         }
       } else if (this.player.alive && circlesOverlap(bullet.pos, bullet.radius, this.player.pos, this.player.radius)) {
         if (this.player.damage()) {
-          this.power = Math.max(0, this.power - POWER_STEP);
+          if (this.difficulty.id !== "beginner") {
+            this.power = Math.max(0, this.power - POWER_STEP);
+          }
           this.audio.playerHit();
           this.bullets.kill(bullet);
           this.bullets.clear("enemy");
@@ -1078,7 +1080,9 @@ export class GameScene {
       const distance = distanceToSegment(this.player.pos, start, end);
       if (distance <= laser.width * 0.5 + this.player.radius) {
         if (this.player.damage()) {
-          this.power = Math.max(0, this.power - POWER_STEP);
+          if (this.difficulty.id !== "beginner") {
+            this.power = Math.max(0, this.power - POWER_STEP);
+          }
           this.audio.playerHit();
           this.bullets.clear("enemy");
           this.shake(0.34, 8);
@@ -1101,7 +1105,9 @@ export class GameScene {
         circlesOverlap(asteroid.pos, asteroid.radius * ASTEROID_HIT_RADIUS_SCALE, this.player.pos, 0)
       ) {
         if (this.player.damage()) {
-          this.power = Math.max(0, this.power - POWER_STEP);
+          if (this.difficulty.id !== "beginner") {
+            this.power = Math.max(0, this.power - POWER_STEP);
+          }
           this.audio.playerHit();
           this.bullets.clear("enemy");
           this.shake(0.34, 8);
@@ -1421,6 +1427,7 @@ export class GameScene {
       if (value) {
         const parsed = JSON.parse(value) as Partial<HighScores>;
         return {
+          beginner: Number(parsed.beginner) || 0,
           casual: Number(parsed.casual) || 0,
           normal: Number(parsed.normal) || 0,
           lunatic: Number(parsed.lunatic) || 0
@@ -1428,9 +1435,9 @@ export class GameScene {
       }
 
       const legacy = window.localStorage.getItem(LEGACY_HIGH_SCORE_KEY);
-      return { casual: 0, normal: legacy ? Number.parseInt(legacy, 10) || 0 : 0, lunatic: 0 };
+      return { beginner: 0, casual: 0, normal: legacy ? Number.parseInt(legacy, 10) || 0 : 0, lunatic: 0 };
     } catch {
-      return { casual: 0, normal: 0, lunatic: 0 };
+      return { beginner: 0, casual: 0, normal: 0, lunatic: 0 };
     }
   }
 
@@ -1586,7 +1593,8 @@ export class GameScene {
     if (generous || Math.random() < 0.18) {
       this.items.spawn("score", { x: x + 12, y }, 24);
     }
-    if (Math.random() < (generous ? 0.12 : 0.06)) {
+    const bombProb = (generous ? 0.12 : 0.06) * (this.difficulty.id === "beginner" ? 2 : 1);
+    if (Math.random() < bombProb) {
       this.items.spawn("bomb", { x, y: y - 8 });
     }
   }
@@ -1619,10 +1627,12 @@ export class GameScene {
       this.floatText("+BOMB", this.player.pos.x, this.player.pos.y - 30, 0xfff4a8);
     } else {
       const previousLevel = this.powerLevel;
-      this.power = Math.min(MAX_POWER, this.power + 4);
+      if (this.difficulty.id !== "beginner") {
+        this.power = Math.min(MAX_POWER, this.power + 4);
+      }
       this.addScore(80);
       this.floatText("+ITEM", this.player.pos.x + 22, this.player.pos.y - 18, 0x9ffff4);
-      if (this.powerLevel > previousLevel && this.state !== "clear") {
+      if (this.difficulty.id !== "beginner" && this.powerLevel > previousLevel && this.state !== "clear") {
         this.showBanner(`POWER UP\nLevel ${this.powerLevel + 1}`, 1.0);
         this.audio.powerUp();
       }
@@ -1658,6 +1668,8 @@ export class GameScene {
       this.difficultyIndex = 1;
     } else if (this.input.wasPressed("3")) {
       this.difficultyIndex = 2;
+    } else if (this.input.wasPressed("4")) {
+      this.difficultyIndex = 3;
     }
 
     if (previous !== this.difficultyIndex) {

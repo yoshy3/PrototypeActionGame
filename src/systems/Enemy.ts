@@ -102,19 +102,22 @@ export class Enemy implements Actor {
   private fire(bullets: BulletSystem, player: { x: number; y: number }, pattern: StageEnemyPattern) {
     if (pattern === "fan") {
       const base = Math.atan2(760 - this.pos.y, player.x - this.pos.x);
-      for (let i = -2; i <= 2; i += 1) {
+      const start = this.difficulty.id === "beginner" ? -1 : -2;
+      const end = this.difficulty.id === "beginner" ? 1 : 2;
+      for (let i = start; i <= end; i += 1) {
         bullets.spawn("enemy", "petal", this.pos, polar(base + i * 0.18, 175 * this.difficulty.bulletSpeed), 8, 1);
       }
       return;
     }
 
     if (pattern === "cross") {
-      for (let i = 0; i < 8; i += 1) {
+      const count = this.difficulty.id === "beginner" ? 4 : 8;
+      for (let i = 0; i < count; i += 1) {
         bullets.spawn(
           "enemy",
           "star",
           this.pos,
-          polar((Math.PI * 2 * i) / 8 + this.age * 0.25, 130 * this.difficulty.bulletSpeed),
+          polar((Math.PI * 2 * i) / count + this.age * 0.25, 130 * this.difficulty.bulletSpeed),
           8,
           1
         );
@@ -125,14 +128,17 @@ export class Enemy implements Actor {
     if (pattern === "snipe") {
       const angle = Math.atan2(780 - this.pos.y, player.x - this.pos.x);
       bullets.spawn("enemy", "orb", this.pos, polar(angle, 210 * this.difficulty.bulletSpeed), 9, 1);
-      bullets.spawn("enemy", "petal", this.pos, polar(angle - 0.16, 165 * this.difficulty.bulletSpeed), 7, 1);
-      bullets.spawn("enemy", "petal", this.pos, polar(angle + 0.16, 165 * this.difficulty.bulletSpeed), 7, 1);
+      if (this.difficulty.id !== "beginner") {
+        bullets.spawn("enemy", "petal", this.pos, polar(angle - 0.16, 165 * this.difficulty.bulletSpeed), 7, 1);
+        bullets.spawn("enemy", "petal", this.pos, polar(angle + 0.16, 165 * this.difficulty.bulletSpeed), 7, 1);
+      }
       return;
     }
 
     if (pattern === "wheel") {
-      for (let i = 0; i < 10; i += 1) {
-        const angle = this.age * 1.4 + (Math.PI * 2 * i) / 10;
+      const count = this.difficulty.id === "beginner" ? 5 : 10;
+      for (let i = 0; i < count; i += 1) {
+        const angle = this.age * 1.4 + (Math.PI * 2 * i) / count;
         bullets.spawn("enemy", i % 2 === 0 ? "star" : "petal", this.pos, polar(angle, 120 * this.difficulty.bulletSpeed), 7, 1);
       }
       return;
@@ -140,7 +146,10 @@ export class Enemy implements Actor {
 
     if (pattern === "splitFan") {
       const base = Math.atan2(760 - this.pos.y, player.x - this.pos.x);
-      for (let i = -1; i <= 1; i += 1) {
+      const start = this.difficulty.id === "beginner" ? 0 : -1;
+      const end = this.difficulty.id === "beginner" ? 0 : 1;
+      const splitCount = this.difficulty.id === "beginner" ? 3 : 7;
+      for (let i = start; i <= end; i += 1) {
         bullets.spawn(
           "enemy",
           "splitter",
@@ -148,7 +157,7 @@ export class Enemy implements Actor {
           polar(base + i * 0.28, 122 * this.difficulty.bulletSpeed),
           11,
           1,
-          { splitAt: 0.78, splitCount: 7, splitSpeed: 155 * this.difficulty.bulletSpeed, splitKind: "petal" }
+          { splitAt: 0.78, splitCount, splitSpeed: 155 * this.difficulty.bulletSpeed, splitKind: "petal" }
         );
       }
       return;
@@ -156,7 +165,9 @@ export class Enemy implements Actor {
 
     if (pattern === "breakableWall") {
       const drift = this.spawn.mirror ? -1 : 1;
-      for (let i = -3; i <= 3; i += 1) {
+      const step = this.difficulty.id === "beginner" ? 2 : 1;
+      const shellLimit = this.difficulty.id === "beginner" ? 2 : 3;
+      for (let i = -shellLimit; i <= shellLimit; i += step) {
         bullets.spawn(
           "enemy",
           "shell",
@@ -167,7 +178,8 @@ export class Enemy implements Actor {
           { hp: 16 }
         );
       }
-      for (let i = -2; i <= 2; i += 1) {
+      const otherLimit = this.difficulty.id === "beginner" ? 1 : 2;
+      for (let i = -otherLimit; i <= otherLimit; i += step) {
         bullets.spawn(
           "enemy",
           i % 2 === 0 ? "orb" : "petal",
@@ -182,27 +194,44 @@ export class Enemy implements Actor {
 
     if (pattern === "laserSlash") {
       const angle = Math.atan2(800 - this.pos.y, player.x - this.pos.x);
-      bullets.spawnLaser("enemy", { x: this.pos.x, y: this.pos.y + 8 }, angle, 270, 5, 0.72, 0.7, 1, 300 * this.difficulty.bulletSpeed, 0.52, this.id);
-      this.fireLockTimer = Math.max(this.fireLockTimer, 0.92);
-      bullets.spawn("enemy", "petal", this.pos, polar(Math.PI / 2, 120 * this.difficulty.bulletSpeed), 7, 1);
+      const fireLaser = this.difficulty.id !== "beginner" || Math.random() < 0.5;
+      if (fireLaser) {
+        bullets.spawnLaser("enemy", { x: this.pos.x, y: this.pos.y + 8 }, angle, 270, 5, 0.72, 0.7, 1, 300 * this.difficulty.bulletSpeed, 0.52, this.id);
+        this.fireLockTimer = Math.max(this.fireLockTimer, 0.92);
+      }
+      if (this.difficulty.id !== "beginner" || Math.random() < 0.5) {
+        bullets.spawn("enemy", "petal", this.pos, polar(Math.PI / 2, 120 * this.difficulty.bulletSpeed), 7, 1);
+      }
       return;
     }
 
     if (pattern === "laserGate") {
       const targetY = 760 + Math.sin(this.age * 3) * 70;
       const angle = Math.atan2(targetY - this.pos.y, player.x - this.pos.x);
-      bullets.spawnLaser("enemy", { x: this.pos.x, y: this.pos.y + 8 }, angle, 310, 5, 0.74, 0.7, 1, 310 * this.difficulty.bulletSpeed, 0.54, this.id);
-      this.fireLockTimer = Math.max(this.fireLockTimer, 0.96);
-      bullets.spawn("enemy", "star", this.pos, polar(angle - 0.22, 140 * this.difficulty.bulletSpeed), 7, 1);
-      bullets.spawn("enemy", "star", this.pos, polar(angle + 0.22, 140 * this.difficulty.bulletSpeed), 7, 1);
+      const fireLaser = this.difficulty.id !== "beginner" || Math.random() < 0.5;
+      if (fireLaser) {
+        bullets.spawnLaser("enemy", { x: this.pos.x, y: this.pos.y + 8 }, angle, 310, 5, 0.74, 0.7, 1, 310 * this.difficulty.bulletSpeed, 0.54, this.id);
+        this.fireLockTimer = Math.max(this.fireLockTimer, 0.96);
+      }
+      if (this.difficulty.id === "beginner") {
+        bullets.spawn("enemy", "star", this.pos, polar(angle, 140 * this.difficulty.bulletSpeed), 7, 1);
+      } else {
+        bullets.spawn("enemy", "star", this.pos, polar(angle - 0.22, 140 * this.difficulty.bulletSpeed), 7, 1);
+        bullets.spawn("enemy", "star", this.pos, polar(angle + 0.22, 140 * this.difficulty.bulletSpeed), 7, 1);
+      }
       return;
     }
 
     if (pattern === "laserSnipe") {
       const angle = Math.atan2(780 - this.pos.y, player.x - this.pos.x);
-      bullets.spawnLaser("enemy", this.pos, angle, 330, 6, 0.78, 0.7, 1, 320 * this.difficulty.bulletSpeed, 0.54, this.id);
-      this.fireLockTimer = Math.max(this.fireLockTimer, 0.94);
-      bullets.spawn("enemy", "orb", this.pos, polar(angle, 170 * this.difficulty.bulletSpeed), 8, 1);
+      const fireLaser = this.difficulty.id !== "beginner" || Math.random() < 0.5;
+      if (fireLaser) {
+        bullets.spawnLaser("enemy", this.pos, angle, 330, 6, 0.78, 0.7, 1, 320 * this.difficulty.bulletSpeed, 0.54, this.id);
+        this.fireLockTimer = Math.max(this.fireLockTimer, 0.94);
+      }
+      if (this.difficulty.id !== "beginner" || Math.random() < 0.5) {
+        bullets.spawn("enemy", "orb", this.pos, polar(angle, 170 * this.difficulty.bulletSpeed), 8, 1);
+      }
       return;
     }
 
@@ -221,7 +250,9 @@ export class Enemy implements Actor {
       return;
     }
 
-    for (let i = -1; i <= 1; i += 1) {
+    const start = this.difficulty.id === "beginner" ? 0 : -1;
+    const end = this.difficulty.id === "beginner" ? 0 : 1;
+    for (let i = start; i <= end; i += 1) {
       bullets.spawn("enemy", "orb", this.pos, polar(Math.PI / 2 + i * 0.22, 155 * this.difficulty.bulletSpeed), 9, 1);
     }
   }
@@ -241,7 +272,7 @@ export class Enemy implements Actor {
 
   private queueDelayedFlameFans(playerX: number) {
     const base = Math.atan2(780 - this.pos.y, playerX - this.pos.x);
-    const count = 9;
+    const count = this.difficulty.id === "beginner" ? 5 : 9;
     const spread = 1.04;
     const direction = this.spawn.mirror ? -1 : 1;
     for (let i = 0; i < count; i += 1) {
@@ -259,7 +290,8 @@ export class Enemy implements Actor {
 
   private fireHomingFlames(bullets: BulletSystem, player: { x: number; y: number }) {
     const base = Math.atan2(player.y - this.pos.y, player.x - this.pos.x);
-    for (let i = -1; i <= 1; i += 1) {
+    const homingLimit = this.difficulty.id === "beginner" ? 0 : 1;
+    for (let i = -homingLimit; i <= homingLimit; i += 1) {
       const angle = base + i * 0.28;
       bullets.spawn(
         "enemy",
@@ -271,12 +303,23 @@ export class Enemy implements Actor {
         { homingDelay: 3.0, homingTime: 3.0, homingTurnRate: 2.35 }
       );
     }
-    for (let i = -1; i <= 1; i += 2) {
+    if (this.difficulty.id !== "beginner") {
+      for (let i = -1; i <= 1; i += 2) {
+        bullets.spawn(
+          "enemy",
+          "fire",
+          { x: this.pos.x + i * 28, y: this.pos.y + 12 },
+          polar(base + i * 0.52, 168 * this.difficulty.bulletSpeed),
+          2.7,
+          1
+        );
+      }
+    } else {
       bullets.spawn(
         "enemy",
         "fire",
-        { x: this.pos.x + i * 28, y: this.pos.y + 12 },
-        polar(base + i * 0.52, 168 * this.difficulty.bulletSpeed),
+        { x: this.pos.x + 28, y: this.pos.y + 12 },
+        polar(base + 0.52, 168 * this.difficulty.bulletSpeed),
         2.7,
         1
       );
@@ -285,7 +328,8 @@ export class Enemy implements Actor {
 
   private fireCrossingFlameStream(bullets: BulletSystem) {
     const drift = this.spawn.mirror ? -1 : 1;
-    for (let i = -2; i <= 2; i += 1) {
+    const step = this.difficulty.id === "beginner" ? 2 : 1;
+    for (let i = -2; i <= 2; i += step) {
       const sideSweep = i % 2 === 0 ? drift : -drift;
       bullets.spawn(
         "enemy",
@@ -296,7 +340,9 @@ export class Enemy implements Actor {
         1
       );
     }
-    for (let i = -1; i <= 1; i += 1) {
+    const start2 = this.difficulty.id === "beginner" ? 0 : -1;
+    const end2 = this.difficulty.id === "beginner" ? 0 : 1;
+    for (let i = start2; i <= end2; i += 1) {
       bullets.spawn(
         "enemy",
         "fire",

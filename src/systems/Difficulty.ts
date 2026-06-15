@@ -1,4 +1,4 @@
-export type DifficultyId = "casual" | "normal" | "lunatic";
+export type DifficultyId = "beginner" | "casual" | "normal" | "lunatic";
 
 export type DifficultyConfig = {
   id: DifficultyId;
@@ -11,6 +11,15 @@ export type DifficultyConfig = {
 };
 
 export const difficulties: DifficultyConfig[] = [
+  {
+    id: "beginner",
+    label: "Beginner",
+    enemyHp: 0.65,
+    bossHp: 0.6,
+    bulletSpeed: 0.65,
+    fireDelay: 7.32,
+    score: 0.5
+  },
   {
     id: "casual",
     label: "Casual",
