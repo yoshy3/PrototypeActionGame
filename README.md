@@ -28,7 +28,7 @@ npm.cmd run preview
 ## Controls
 
 - Start / confirm: Z, Space, Enter, mouse or touch on the boot screen, or gamepad confirm
-- Select difficulty on title: Left/Right, A/D, or 1/2/3
+- Select difficulty on title: Left/Right, A/D, or 1/2/3/4
 - Move: Arrow keys, WASD, D-pad, or left stick
 - Focus / slow movement: Shift or gamepad RB
 - Shoot: Z, Space, or gamepad A
@@ -48,7 +48,7 @@ Development builds also expose quick-start debug keys on the title screen for bo
 - Pre-boss warning cut-ins with boss standing artwork, subtitles, stage-specific voice clips, music ducking, skip input, and battlefield cleanup before combat resumes
 - Five-phase boss spell patterns with petals, stars, split bullets, breakable shells, warning lasers, asteroid pressure, magma gates, cinder rain, flame wheels, and firestorm barrages
 - Enemy waves with moth, crystal, astral familiar, dragon, and fire familiar sprites using fan, cross, snipe, wheel, laser, split-fan, breakable-wall, flame, and homing-flame patterns
-- Casual, Normal, and Lunatic difficulty presets that scale enemy HP, boss HP, bullet speed, firing delay, and score rewards
+- Beginner, Casual, Normal, and Lunatic difficulty presets that scale enemy HP, boss HP, bullet speed, firing delay, and score rewards
 - Player movement, focused hitbox display, multi-level shots, lives, bombs, invincibility after damage, extends, score, pause, clear, game over, ending, and credit roll states
 - Graze scoring for near-misses against enemy bullets and lasers
 - Collectible score and bomb items, Lv1-Lv4 shot power, and an upper-screen auto-collect line
