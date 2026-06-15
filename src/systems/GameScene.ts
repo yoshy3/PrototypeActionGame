@@ -50,14 +50,14 @@ const PRE_BOSS_SUBTITLES_BY_VOICE: Partial<Record<VoiceId, readonly VoiceSubtitl
     { start: 5.68, end: 10.6, text: "I can see a strong will in your eyes." },
     { start: 10.6, end: 16.2, text: "But whether it is genuine, I do not yet know." },
     { start: 16.2, end: 18.6, text: "I am the Lunar Witch." },
-    { start: 18.6, end: 22.4, text: "Now, let us begin while the moon watches over us." }
+    { start: 18.6, end: 23.0, text: "Now, let us begin while the moon watches over us." }
   ],
   stage2PreBossBattle: [
     { start: 0.0, end: 1.9, text: "I have been waiting." },
     { start: 1.9, end: 7.32, text: "The stars knew you would find your way here." },
     { start: 7.32, end: 11.2, text: "The future is not decided by prophecy alone." },
     { start: 11.2, end: 16.44, text: "Show me that possibility with your own power." },
-    { start: 16.44, end: 22.4, text: "Now, are you ready to accept the guidance of the stars?" }
+    { start: 16.44, end: 22.7, text: "Now, are you ready to accept the guidance of the stars?" }
   ],
   stage3PreBossBattle: [
     { start: 0.0, end: 2.2, text: "Welcome, traveler." },
@@ -66,7 +66,7 @@ const PRE_BOSS_SUBTITLES_BY_VOICE: Partial<Record<VoiceId, readonly VoiceSubtitl
     { start: 9.3, end: 12.82, text: "you need strength even the stars will recognize." },
     { start: 12.82, end: 15.8, text: "Now, show me that radiance." },
     { start: 15.8, end: 19.38, text: "I will answer with all my power." },
-    { start: 19.38, end: 24.1, text: "Please, do not let that light fade." }
+    { start: 19.38, end: 24.4, text: "Please, do not let that light fade." }
   ],
   stage4PreBossBattle: [
     { start: 0.0, end: 1.6, text: "Welcome, challenger!" },
