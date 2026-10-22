@@ -1,3 +1,4 @@
+import type { MessageKey } from "./I18n";
 import type { AnimatedSprite, Container, Graphics } from "pixi.js";
 import type { MusicTrackId } from "./AudioSystem";
 
@@ -112,9 +113,9 @@ export type AsteroidSpawn = {
 
 export type StageDefinition = {
   id: number;
-  title: string;
-  subtitle: string;
-  warningText: string;
+  title: MessageKey;
+  subtitle: MessageKey;
+  warningText: MessageKey;
   bossKind: BossKind;
   stageMusic?: MusicTrackId;
   bossMusic?: MusicTrackId;

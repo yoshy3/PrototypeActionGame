@@ -1,7 +1,11 @@
-import { Application } from "pixi.js";
+import { Application, TextStyle } from "pixi.js";
 import "./style.css";
+import { t, initializeLocale, UI_FONT } from "./systems/I18n";
 import { GameScene } from "./systems/GameScene";
 import { loadCharacterAssets } from "./systems/VisualFactory";
+
+initializeLocale();
+TextStyle.defaultTextStyle.fontFamily = UI_FONT;
 
 const showError = (err: any) => {
   const container = document.getElementById("app");
@@ -20,7 +24,7 @@ const showError = (err: any) => {
     errorEl.style.borderRadius = "8px";
     errorEl.style.margin = "20px";
     errorEl.style.boxShadow = "0 20px 40px rgba(0, 0, 0, 0.5)";
-    errorEl.innerText = `[Game Initialization Error]\n\nError: ${err?.message || err}\n\nStack:\n${err?.stack || "No stack trace available"}`;
+    errorEl.innerText = `${t("Game Initialization Error")}\n\n${t("Error")}: ${err?.message || err}\n\n${t("Stack trace")}:\n${err?.stack || t("No stack trace available")}`;
     container.appendChild(errorEl);
   }
 };
@@ -38,8 +42,8 @@ async function start() {
     const app = new Application();
 
     await app.init({
-      width: 720,
-      height: 960,
+      width: 1920,
+      height: 1080,
       backgroundAlpha: 0,
       antialias: true,
       resolution: Math.min(window.devicePixelRatio, 2),

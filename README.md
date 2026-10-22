@@ -1,6 +1,6 @@
 # Moonlit Spell Barrage
 
-A browser-based 2D bullet-hell shooting game prototype built with TypeScript, Vite, and PixiJS.
+A browser-based 2D bullet-hell shooting game built with TypeScript, Vite, and PixiJS. Remaster 1.0.0 introduces a responsive 16:9 presentation and English/Japanese language support.
 Its stage flow, dense spell patterns, grazing, and boss-focused structure are inspired by Touhou Project.
 
 ![Moonlit Spell Barrage title art](src/assets/images/title.png)
@@ -34,11 +34,31 @@ npm.cmd run preview
 - Shoot: Z, Space, or gamepad A
 - Bomb: X or gamepad X
 - Mute sound: M
+- Language: L, gamepad Y, or the language button on the title/pause screen (English / 日本語)
 - Pause: Esc or gamepad Start
 - Pause menu: Esc/Start to resume, R to retry, hold Z/Space to return to title
 - Result screens: R to retry, Z/Space/Enter to continue or return to title
 
 Development builds also expose quick-start debug keys on the title screen for boss, later-stage, and ending checks.
+
+## Remaster 1.0.0
+
+- The full 1920×1080 presentation scales uniformly to fit the browser viewport. The original 720×960 playfield stays centered, preserving movement and collision coordinates; other aspect ratios have margins.
+- Left HUD: lives, bombs, shot level, power progress, controls, sound, and language. Right HUD: score, best score, graze, difficulty, score needed for the next life, and stage/boss progress.
+- All interface text, stage names, spell names, and credit roles support English and Japanese. The initial language follows the browser, and the selected language is saved locally. Original artwork and proper product names remain unchanged.
+- Breakable enemy bullets now have **8 HP** for both enemies and bosses on every difficulty. Three Lv1 main-shot hits destroy one; shots do not penetrate them.
+- The third boss's breakable volleys have a minimum interval of 1.4 seconds multiplied by the difficulty firing interval, providing windows for shots to reach the boss.
+- Casual and Normal retain their multipliers. Lunatic now uses enemy/boss HP ×1.10, bullet speed ×1.08, firing interval ×1.30, and score ×1.20. Normal's firing interval remains ×1.50, making Lunatic fire approximately 15% more frequently.
+- Remaster scores use a separate per-difficulty local record. Previous version scores are preserved but are not imported into the new record.
+
+## Tests
+
+```powershell
+npx.cmd playwright install chromium
+npm.cmd test
+```
+
+Browser tests cover viewport fitting, both languages, screen transitions, storage availability, score isolation, breakable-bullet collisions, and all four bosses. The balance simulation uses invincibility and boss tracking to measure whether sustained Lv1 fire reaches enemies; it does not measure human clear rates. Screenshots and simulation results are written to `test-results/`.
 
 ## Current Scope
 

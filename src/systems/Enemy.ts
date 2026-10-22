@@ -1,3 +1,4 @@
+import { BREAKABLE_BULLET_HP } from "./Balance";
 import { Container } from "pixi.js";
 import { polar, clamp } from "./math";
 import type { DifficultyConfig } from "./Difficulty";
@@ -163,7 +164,7 @@ export class Enemy implements Actor {
           { x: (i * 9 + drift * 22) * this.difficulty.bulletSpeed, y: 122 * this.difficulty.bulletSpeed },
           14,
           1,
-          { hp: 16 }
+          { hp: BREAKABLE_BULLET_HP }
         );
       }
       for (let i = -2; i <= 2; i += 1) {

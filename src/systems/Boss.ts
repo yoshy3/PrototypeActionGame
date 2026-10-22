@@ -1,3 +1,5 @@
+import type { MessageKey } from "./I18n";
+import { BREAKABLE_BULLET_HP } from "./Balance";
 import { Container } from "pixi.js";
 import type { DifficultyConfig } from "./Difficulty";
 import { polar } from "./math";
@@ -26,6 +28,7 @@ export class Boss implements Actor {
   private fireTimer = 0.2;
   private fireLockTimer = 0;
   private breakableVolley = 0;
+  private breakableCooldown = 0;
   private starlightLaserCooldown = 0;
   private salamanderLaserCooldown = 0;
   private phase = 0;
@@ -53,6 +56,7 @@ export class Boss implements Actor {
     }
 
     this.age += dt;
+    this.breakableCooldown = Math.max(0, this.breakableCooldown - dt);
     this.fireLockTimer = Math.max(0, this.fireLockTimer - dt);
     this.starlightLaserCooldown = Math.max(0, this.starlightLaserCooldown - dt);
     this.salamanderLaserCooldown = Math.max(0, this.salamanderLaserCooldown - dt);
@@ -93,44 +97,48 @@ export class Boss implements Actor {
     return this.phase;
   }
 
-  getSpellName() {
+  getPhaseThresholds() {
+    return this.kind === "cosmicSorcerer" ? [0.133, 0.266, 0.4, 0.7] : [0.2, 0.4, 0.6, 0.8];
+  }
+
+  getSpellName(): MessageKey {
     if (this.kind === "starlightOracle") {
-      return [
+      return ([
         "Crystal Dawn Ray",
         "Astral Crosslight",
         "Prism Diagonal Gate",
         "Starlight Meridian",
         "Oracle's Luminous Verdict"
-      ][this.phase];
+      ] as const)[this.phase];
     }
 
     if (this.kind === "cosmicSorcerer") {
-      return [
+      return ([
         "Asteroid Sigil",
         "Comet Thread Spiral",
         "Celestial Ring Gate",
         "Meteor Grimoire",
         "Cosmic Belt Finale"
-      ][this.phase];
+      ] as const)[this.phase];
     }
 
     if (this.kind === "salamander") {
-      return [
+      return ([
         "Cinderfall Rain",
         "Volcanic Flame Wheel",
         "Magma Serpent Gate",
         "Firestorm Caldera",
         "Salamander Inferno"
-      ][this.phase];
+      ] as const)[this.phase];
     }
 
-    return [
+    return ([
       "Moonlit Petal Ring",
       "Starfall Spiral",
       "Lunar Butterfly Storm",
       "Eclipse Star Bloom",
       "Full Moon Finale"
-    ][this.phase];
+    ] as const)[this.phase];
   }
 
   damage(amount: number) {
@@ -288,7 +296,10 @@ export class Boss implements Actor {
 
   private shouldFireBreakable() {
     this.breakableVolley += 1;
-    return this.breakableVolley % 2 === 1;
+    if (this.breakableVolley % 2 === 0 || this.breakableCooldown > 0) return false;
+    // Leave a shooting window between walls, including the final rapid-fire spell.
+    this.breakableCooldown = 1.4 * this.difficulty.fireDelay;
+    return true;
   }
 
   private fireSplitSigil(bullets: BulletSystem, count: number, splitAt: number) {
@@ -333,7 +344,7 @@ export class Boss implements Actor {
         polar(angle, 112 * this.difficulty.bulletSpeed),
         15,
         1,
-        { hp: 24 }
+        { hp: BREAKABLE_BULLET_HP }
       );
     }
   }
@@ -351,7 +362,7 @@ export class Boss implements Actor {
         polar(angle, 126 * this.difficulty.bulletSpeed),
         15,
         1,
-        { hp: 24 }
+        { hp: BREAKABLE_BULLET_HP }
       );
     }
   }

@@ -1,8 +1,9 @@
+import type { MessageKey } from "./I18n";
 export type DifficultyId = "casual" | "normal" | "lunatic";
 
 export type DifficultyConfig = {
   id: DifficultyId;
-  label: string;
+  label: MessageKey;
   enemyHp: number;
   bossHp: number;
   bulletSpeed: number;
@@ -32,10 +33,10 @@ export const difficulties: DifficultyConfig[] = [
   {
     id: "lunatic",
     label: "Lunatic",
-    enemyHp: 1.25,
-    bossHp: 1.32,
-    bulletSpeed: 1.2,
-    fireDelay: 0.78,
-    score: 1.45
+    enemyHp: 1.10,
+    bossHp: 1.10,
+    bulletSpeed: 1.08,
+    fireDelay: 1.30,
+    score: 1.20
   }
 ];

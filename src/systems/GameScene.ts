@@ -1,3 +1,6 @@
+import { getLocale, setLocale, t } from "./I18n";
+import { RemasterHud } from "./RemasterHud";
+import { version } from "../../package.json";
 import { Application, Assets, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
 import { AudioSystem, type MusicTrackId } from "./AudioSystem";
 import { Asteroid } from "./Asteroid";
@@ -21,8 +24,7 @@ type GameState =
   | "clear"
   | "ending"
   | "gameover";
-const HIGH_SCORE_KEY = "moonlit-spell-barrage.highScores";
-const LEGACY_HIGH_SCORE_KEY = "moonlit-spell-barrage.highScore";
+const HIGH_SCORE_KEY = "moonlit-spell-barrage.remaster.highScores";
 const TITLE_IMAGE_URL = new URL("../assets/images/title.png", import.meta.url).href;
 const ENDING_IMAGE_URL = new URL("../assets/images/ending.png", import.meta.url).href;
 const AUTO_COLLECT_LINE_Y = 340;
@@ -39,7 +41,7 @@ const ENDING_HINT_Y = 70;
 const PRESS_PROMPT_BLINK_SPEED = 5.2;
 const PRESS_PROMPT_MIN_ALPHA = 0.34;
 const DEV_BOSS_START_ENABLED = import.meta.env.DEV;
-const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? "dev";
+const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? version;
 type HighScores = Record<DifficultyId, number>;
 type StartOptions = {
   bossDebug?: boolean;
@@ -50,6 +52,8 @@ export class GameScene {
   private readonly audio = new AudioSystem();
   private readonly input = new Input();
   private readonly root = new Container();
+  private readonly center = new Container();
+  private readonly sideHud = new RemasterHud(() => this.toggleLanguage(), APP_VERSION);
   private readonly background = new Graphics();
   private readonly titleArt = new Sprite(Texture.EMPTY);
   private readonly endingLayer = new Container();
@@ -103,14 +107,6 @@ export class GameScene {
     text: "",
     style: { fill: 0xaefdf2, fontSize: 24, align: "center", fontWeight: "700", letterSpacing: 0 }
   });
-  private readonly hud = new Text({
-    text: "",
-    style: { fill: 0xffedf9, fontSize: 16, letterSpacing: 0, wordWrap: true, wordWrapWidth: 676 }
-  });
-  private readonly subHud = new Text({
-    text: "",
-    style: { fill: 0xaefdf2, fontSize: 14, letterSpacing: 0, wordWrap: true, wordWrapWidth: 676 }
-  });
   private readonly banner = new Text({
     text: "",
     style: { fill: 0xffe2f3, fontSize: 28, align: "center", fontWeight: "700", letterSpacing: 0 }
@@ -135,8 +131,6 @@ export class GameScene {
     style: { fill: 0xaefdf2, fontSize: 18, align: "center", fontWeight: "700", letterSpacing: 0 }
   });
   private readonly pauseTitleProgress = new Graphics();
-  private readonly bossBar = new Graphics();
-  private readonly stageProgress = new Graphics();
   private state: GameState = "boot";
   private time = 0;
   private spawnIndex = 0;
@@ -187,18 +181,27 @@ export class GameScene {
     this.endingArt.position.set(360, 480);
     this.fitEndingArt();
 
-    this.app.stage.addChild(this.root);
+    this.center.position.set(555, 0);
+    this.center.scale.set(1.125);
+    const clip = new Graphics().rect(555, 0, 810, 1080).fill(0xffffff);
+    this.app.stage.addChild(this.sideHud.container, this.center, clip);
+    this.center.addChild(this.root);
+    this.center.mask = clip;
     this.root.addChild(
       this.background,
       this.titleArt,
       this.playfield,
       this.collectLine,
       this.bombFlash,
-      this.endingLayer,
-      this.ui
+      this.endingLayer
     );
+    this.center.addChild(this.ui);
     this.playfield.addChild(this.items.container, this.bullets.container, this.player.container);
 
+    for (const label of [this.overlayPrompt, this.banner, this.clearTitle, this.clearStats, this.clearHint, this.clearPrompt, this.endingHint, this.endingPrompt]) {
+      label.style.wordWrap = true;
+      label.style.wordWrapWidth = 640;
+    }
     this.overlay.anchor.set(0.5);
     this.overlay.position.set(360, 460);
     this.overlayPrompt.anchor.set(0.5);
@@ -223,16 +226,21 @@ export class GameScene {
     this.createEndingCredits();
     this.endingHint.position.set(360, ENDING_HINT_Y);
     this.endingLayer.addChild(this.endingArt, this.endingShade, this.endingCredits, this.endingHint, this.endingPrompt);
-    this.hud.position.set(22, 20);
-    this.subHud.position.set(22, 64);
-    this.ui.addChild(this.hud, this.subHud, this.bossBar, this.stageProgress, this.clearFx, this.banner, this.overlay, this.overlayPrompt, this.pauseTitleProgress);
+    this.ui.addChild(this.clearFx, this.banner, this.overlay, this.overlayPrompt, this.pauseTitleProgress);
 
     this.drawBackground();
     this.showBootScreen();
+    this.updateHud();
   }
 
   update(dt: number) {
+    this.step(dt);
+    this.updateHud();
+  }
+
+  private step(dt: number) {
     this.input.update();
+    if (this.input.wasPressed("l")) this.toggleLanguage();
     this.updateBackground(dt);
     this.updateShake(dt);
     this.updateClearResult(dt);
@@ -251,14 +259,14 @@ export class GameScene {
       this.state = this.state === "playing" ? "paused" : "playing";
       this.audio.setPaused(this.state === "paused");
       this.overlay.position.set(360, 460);
-      this.overlay.text = this.state === "paused" ? "PAUSED\n\nEsc/Start to resume\nR to retry" : "";
-      this.setOverlayPrompt(this.state === "paused" ? "Hold Z / SPACE to title" : "", 555);
+      this.overlay.text = this.state === "paused" ? t("PAUSED\n\nEsc/Start to resume\nR to retry") : "";
+      this.setOverlayPrompt(this.state === "paused" ? t("Hold Z / SPACE to title") : "", 650);
       this.clearPauseTitleProgress();
     }
     if (this.input.wasPressed("m")) {
       this.audio.resume();
       const muted = this.audio.toggleMute();
-      this.showBanner(muted ? "SOUND OFF" : "SOUND ON", 0.8);
+      this.showBanner(muted ? t("SOUND OFF") : t("SOUND ON"), 0.8);
       if (this.state === "title") {
         this.showTitle();
       }
@@ -347,7 +355,7 @@ export class GameScene {
     if (!this.announcedBoss && this.time >= this.currentStage.bossStartTime - 2.1) {
       this.announcedBoss = true;
       this.audio.warning();
-      this.showBanner(`WARNING\n${this.currentStage.warningText}`, 2.0);
+      this.showBanner(`${t("WARNING")}\n${t(this.currentStage.warningText)}`, 2.0);
     }
 
     if (this.player.update(dt, this.input, this.bullets, { width: 720, height: 960 }, this.power)) {
@@ -389,7 +397,7 @@ export class GameScene {
         this.bossPhase = this.boss.getPhase();
         this.bullets.clear("enemy");
         this.audio.spellChange();
-        this.showBanner(`SPELL ${this.bossPhase + 1}\n${this.boss.getSpellName()}`, 1.7);
+        this.showBanner(`${t("SPELL")} ${this.bossPhase + 1}\n${t(this.boss.getSpellName())}`, 1.7);
         this.shake(0.28, 5);
         this.spark(this.boss.pos.x, this.boss.pos.y, 0xffe2f3, 34);
         this.dropSpellChangeItems(this.boss.pos.x, this.boss.pos.y);
@@ -405,9 +413,6 @@ export class GameScene {
     this.resolveCollisions();
     this.cleanupEnemies();
     this.cleanupAsteroids();
-    this.drawBossBar();
-    this.drawStageProgress();
-    this.updateHud();
 
     if (!this.player.alive) {
       this.state = "gameover";
@@ -488,14 +493,16 @@ export class GameScene {
       this.playfield.addChild(this.player.container);
     }
     if (bossDebug) {
-      this.showBanner("BOSS DEBUG\nFull power start", 1.4);
+      this.showBanner(t("BOSS DEBUG\nFull power start"), 1.4);
     } else if (this.currentStageIndex > 0) {
-      this.showBanner(`${this.currentStage.title.toUpperCase()}\nFull power debug start`, 1.4);
+      this.showBanner(`${t(this.currentStage.title)}\n${t("Full power debug start")}`, 1.4);
     }
   }
 
   private showTitle() {
     this.state = "title";
+    this.banner.text = "";
+    this.bannerTimer = 0;
     this.clearPauseTitleProgress();
     this.audio.setPaused(false);
     this.audio.playMusic("title");
@@ -516,17 +523,8 @@ export class GameScene {
     this.player.reset();
     this.hideClearResult();
     this.hideEnding();
-    this.overlay.position.set(360, 560);
-    this.overlay.text = `Difficulty: ${this.difficulty.label}\nVersion ${APP_VERSION}\n\nLeft/Right or 1-3 to change${
-      DEV_BOSS_START_ENABLED ? "\nB: Stage 1 boss   V/C/F: Stage 2/3/4\nN/G/H: Stage 2/3/4 boss   E: Ending" : ""
-    }`;
-    this.setOverlayPrompt("Z / SPACE to start", this.getOverlayBottom() + 44);
-    this.hud.text = `Move: Arrow/WASD/Pad   Shot: Z/A   Bomb: X/X\nFocus: Shift/RB   M: ${
-      this.audio.isMuted() ? "Sound Off" : "Sound On"
-    }   Esc/Start: Pause`;
-    this.subHud.text = `Graze enemy bullets for bonus score. ${this.difficulty.label} best: ${this.currentHighScore}`;
-    this.bossBar.clear();
-    this.stageProgress.clear();
+    this.overlay.position.set(360, 520);
+    this.refreshTitleText();
     this.bombFlash.clear();
     this.collectLine.clear();
   }
@@ -555,7 +553,7 @@ export class GameScene {
   private drawPauseTitleProgress(ratio: number) {
     const clamped = Math.max(0, Math.min(1, ratio));
     const x = 210;
-    const y = 565;
+    const y = 690;
     const width = 300;
     const height = 16;
     this.pauseTitleProgress.clear();
@@ -580,14 +578,10 @@ export class GameScene {
     this.playfield.visible = false;
     this.hideClearResult();
     this.hideEnding();
-    this.overlay.position.set(360, 560);
-    this.overlay.text = "CLICK OR PRESS ANY KEY\nGAMEPAD BUTTON";
+    this.overlay.position.set(360, 520);
+    this.overlay.text = t("CLICK OR PRESS ANY KEY\nGAMEPAD BUTTON");
     this.setOverlayPrompt("");
-    this.hud.text = "";
-    this.subHud.text = "";
     this.banner.text = "";
-    this.bossBar.clear();
-    this.stageProgress.clear();
     this.bombFlash.clear();
     this.collectLine.clear();
   }
@@ -676,6 +670,7 @@ export class GameScene {
 
   private resolveCollisions() {
     for (const bullet of this.bullets.bullets) {
+      if (!bullet.alive) continue;
       if (bullet.owner === "player") {
         for (const enemyBullet of this.bullets.bullets) {
           if (
@@ -712,11 +707,11 @@ export class GameScene {
           }
         }
 
-        if (this.boss?.alive && circlesOverlap(bullet.pos, bullet.radius, this.boss.pos, this.boss.radius)) {
+        if (bullet.alive && this.boss?.alive && circlesOverlap(bullet.pos, bullet.radius, this.boss.pos, this.boss.radius)) {
           this.bullets.kill(bullet);
           if (this.boss.damage(bullet.damage)) {
             this.addScore(5000);
-            this.awardLife("BOSS BONUS");
+            this.awardLife(t("BOSS BONUS"));
             this.clearTimer = 0.8;
             this.bullets.clear("enemy");
             this.audio.bossDefeated();
@@ -745,7 +740,7 @@ export class GameScene {
         this.graze += 1;
         this.addScore(15);
         this.audio.graze();
-        this.floatText("+GRAZE", this.player.pos.x + 24, this.player.pos.y - 18, 0xaefdf2);
+        this.floatText(t("+GRAZE"), this.player.pos.x + 24, this.player.pos.y - 18, 0xaefdf2);
       }
     }
 
@@ -782,7 +777,7 @@ export class GameScene {
         this.graze += 1;
         this.addScore(15);
         this.audio.graze();
-        this.floatText("+GRAZE", this.player.pos.x + 24, this.player.pos.y - 18, 0xaefdf2);
+        this.floatText(t("+GRAZE"), this.player.pos.x + 24, this.player.pos.y - 18, 0xaefdf2);
       }
     }
 
@@ -821,15 +816,41 @@ export class GameScene {
   }
 
   private updateHud() {
-    this.hud.text = `Lives: ${this.player.hp}   Bombs: ${this.bombs}   Power: Lv${this.powerLevel + 1} ${
-      this.power
-    }/${MAX_POWER}   Graze: ${this.graze}\nScore: ${this.score}   ${this.audio.isMuted() ? "Muted" : "Sound"}`;
-    this.subHud.text = this.boss?.alive
-      ? `${this.boss.getSpellName()}: ${Math.max(0, Math.ceil(this.boss.hp))} HP   Focus with Shift/RB`
-      : `${this.currentStage.title}: ${this.currentStage.subtitle}   Auto-collect above the top line`;
+    const inRun = this.state !== "boot" && this.state !== "title";
+    const names = { lunarWitch: "Lunar Witch", starlightOracle: "Starlight Oracle", cosmicSorcerer: "Cosmic Sorcerer", salamander: "Salamander" } as const;
+    this.sideHud.update({
+      lives: this.player.hp, bombs: this.bombs, power: inRun ? this.power : 0,
+      level: inRun ? this.powerLevel + 1 : 1, score: inRun ? this.score : 0,
+      best: this.currentHighScore, graze: inRun ? this.graze : 0,
+      difficulty: t(this.difficulty.label), nextExtend: inRun ? Math.max(0, this.nextExtendScore - this.score) : FIRST_EXTEND_SCORE,
+      muted: this.audio.isMuted(), stage: t(this.currentStage.title), subtitle: t(this.currentStage.subtitle),
+      progress: inRun ? Math.min(1, this.time / this.currentStage.bossStartTime) : 0,
+      boss: this.boss?.alive ? { name: t(names[this.currentStage.bossKind]), spell: t(this.boss.getSpellName()), hp: Math.max(0, this.boss.hp), maxHp: this.boss.maxHp, phase: this.boss.getPhase() + 1, thresholds: this.boss.getPhaseThresholds() } : undefined,
+      canChangeLanguage: this.state === "title" || this.state === "paused", inRun
+    });
   }
 
-  private finishRun(title: string) {
+  private toggleLanguage() {
+    if (this.state !== "title" && this.state !== "paused") return;
+    setLocale(getLocale() === "ja" ? "en" : "ja");
+    for (const child of this.endingCredits.removeChildren()) child.destroy();
+    this.createEndingCredits();
+    if (this.state === "title") this.refreshTitleText();
+    else {
+      this.overlay.text = t("PAUSED\n\nEsc/Start to resume\nR to retry");
+      this.setOverlayPrompt(t("Hold Z / SPACE to title"), 650);
+      this.banner.text = "";
+    }
+  }
+
+  private refreshTitleText() {
+    this.overlay.text = `${t("Difficulty")}: ${t(this.difficulty.label)}\nRemaster ${APP_VERSION}\n\n${t("Left/Right or 1-3 to change")}${DEV_BOSS_START_ENABLED ? "\n\n" + t("B: Stage 1 boss   V/C/F: Stage 2/3/4\nN/G/H: Stage 2/3/4 boss   E: Ending") : ""}`;
+    this.setOverlayPrompt(t("Z / SPACE to start"), this.getOverlayBottom() + 44);
+  }
+
+  private finishRun(title: "GAME OVER" | "STAGE CLEAR") {
+    this.banner.text = "";
+    this.bannerTimer = 0;
     const wasRecord = this.score > this.currentHighScore;
     if (wasRecord) {
       this.highScores[this.difficulty.id] = this.score;
@@ -844,11 +865,10 @@ export class GameScene {
 
     this.hideClearResult();
     this.overlay.position.set(360, 460);
-    this.overlay.text = `${title}\n\n${this.difficulty.label} Score ${this.score}\nPower Lv${this.powerLevel + 1} ${this.power}/${MAX_POWER}\nGraze ${this.graze}\nBest ${this.currentHighScore}${
-      wasRecord ? "  NEW RECORD" : ""
-    }\n\nR to retry`;
-    this.setOverlayPrompt("Z / SPACE to title", 620);
-    this.subHud.text = wasRecord ? "New local high score saved." : "Run complete.";
+    this.overlay.text = `${t(title)}\n\n${t(this.difficulty.label)} ${t("Score")} ${this.score}\n${t("Power")} Lv${this.powerLevel + 1} ${this.power}/${MAX_POWER}\n${t("Graze")} ${this.graze}\n${t("Best")} ${this.currentHighScore}${
+      wasRecord ? "  " + t("NEW RECORD") : ""
+    }\n\n${t("R to retry")}`;
+    this.setOverlayPrompt(t("Z / SPACE to title"), this.getOverlayBottom() + 44);
   }
 
   private showClearResult(wasRecord: boolean) {
@@ -857,20 +877,19 @@ export class GameScene {
     this.clearFx.visible = true;
     this.clearFxTimer = 0;
     this.clearInputTimer = 4.0;
-    this.clearTitle.text = "STAGE CLEAR";
+    this.clearTitle.text = t("STAGE CLEAR");
     this.refreshClearResultText(wasRecord);
-    this.subHud.text = wasRecord ? "New local high score saved." : "Run complete.";
     this.updateClearResult(0);
   }
 
   private refreshClearResultText(wasRecord: boolean) {
-    this.clearStats.text = `${this.difficulty.label} Score ${this.score}\nPower Lv${this.powerLevel + 1} ${this.power}/${MAX_POWER}   Graze ${this.graze}\nBest ${this.currentHighScore}`;
+    this.clearStats.text = `${t(this.difficulty.label)} ${t("Score")} ${this.score}\n${t("Power")} Lv${this.powerLevel + 1} ${this.power}/${MAX_POWER}   ${t("Graze")} ${this.graze}\n${t("Best")} ${this.currentHighScore}`;
     this.clearHint.text =
       this.clearInputTimer > 0
-        ? `${wasRecord ? "NEW RECORD" : "RUN COMPLETE"}\nPlease wait...`
-        : `${wasRecord ? "NEW RECORD" : "RUN COMPLETE"}${this.isFinalStage ? "" : "\nR to retry"}`;
+        ? `${wasRecord ? t("NEW RECORD") : t("RUN COMPLETE")}\n${t("Please wait...")}`
+        : `${wasRecord ? t("NEW RECORD") : t("RUN COMPLETE")}${this.isFinalStage ? "" : "\n" + t("R to retry")}`;
     this.clearPrompt.text =
-      this.clearInputTimer > 0 ? "" : this.isFinalStage ? "Press Z / SPACE for ending" : "Z / SPACE to title";
+      this.clearInputTimer > 0 ? "" : this.isFinalStage ? t("Press Z / SPACE for ending") : t("Z / SPACE to title");
   }
 
   private hideClearResult() {
@@ -897,8 +916,6 @@ export class GameScene {
     }
 
     this.refreshClearResultText(this.clearWasRecord);
-    this.drawStageProgress();
-    this.updateHud();
   }
 
   private beginEnding() {
@@ -910,14 +927,10 @@ export class GameScene {
     this.titleArt.visible = false;
     this.playfield.visible = false;
     this.collectLine.clear();
-    this.bossBar.clear();
-    this.stageProgress.clear();
     this.bombFlash.clear();
     this.overlay.text = "";
     this.setOverlayPrompt("");
     this.banner.text = "";
-    this.hud.text = "";
-    this.subHud.text = "";
     this.bullets.clear();
     this.items.clear();
     this.boss?.container.destroy();
@@ -963,21 +976,21 @@ export class GameScene {
     const lines: Array<{ text: string; kind: "title" | "heading" | "role" | "tool" | "gap" }> = [
       { text: "MOONLIT SPELL BARRAGE", kind: "title" },
       { text: "", kind: "gap" },
-      { text: "Inspired by Touhou Project", kind: "heading" },
+      { text: t("Inspired by Touhou Project"), kind: "heading" },
       { text: "", kind: "gap" },
-      { text: "Staff", kind: "heading" },
+      { text: t("Staff"), kind: "heading" },
       { text: "", kind: "gap" },
-      { text: "Programmer", kind: "role" },
+      { text: t("Programmer"), kind: "role" },
       { text: "Codex App (GPT-5.5)", kind: "tool" },
       { text: "", kind: "gap" },
-      { text: "Graphics Artist", kind: "role" },
+      { text: t("Graphics Artist"), kind: "role" },
       { text: "ChatGPT Image 2", kind: "tool" },
       { text: "", kind: "gap" },
-      { text: "Music Composer", kind: "role" },
+      { text: t("Music Composer"), kind: "role" },
       { text: "SUNO", kind: "tool" },
       { text: "Stable Audio", kind: "tool" },
       { text: "", kind: "gap" },
-      { text: "SFX Designer", kind: "role" },
+      { text: t("SFX Designer"), kind: "role" },
       { text: "ElevenCreative", kind: "tool" },
       { text: "Bfxr", kind: "tool" }
     ];
@@ -1036,8 +1049,8 @@ export class GameScene {
   }
 
   private refreshEndingHint() {
-    this.endingHint.text = this.endingInputTimer > 0 ? "Please wait..." : "R to retry";
-    this.endingPrompt.text = this.endingInputTimer > 0 ? "" : "Z / SPACE to title";
+    this.endingHint.text = this.endingInputTimer > 0 ? t("Please wait...") : t("R to retry");
+    this.endingPrompt.text = this.endingInputTimer > 0 ? "" : t("Z / SPACE to title");
   }
 
   private updatePressPromptBlink(dt: number) {
@@ -1057,42 +1070,6 @@ export class GameScene {
     return this.overlay.y + this.overlay.height * (1 - this.overlay.anchor.y);
   }
 
-  private drawBossBar() {
-    this.bossBar.clear();
-    if (!this.boss?.alive || !this.boss.entered) {
-      return;
-    }
-
-    const width = 510;
-    const x = 105;
-    const y = 88;
-    const ratio = Math.max(0, this.boss.hp / this.boss.maxHp);
-    this.bossBar.roundRect(x, y, width, 8, 4).fill({ color: 0xffffff, alpha: 0.18 });
-    this.bossBar.roundRect(x, y, width * ratio, 8, 4).fill(0xff72bd);
-
-    for (const phaseRatio of [0.2, 0.4, 0.6, 0.8]) {
-      const markerX = x + width * phaseRatio;
-      this.bossBar.moveTo(markerX, y - 3).lineTo(markerX, y + 11).stroke({ color: 0xffedf9, width: 1, alpha: 0.62 });
-    }
-  }
-
-  private drawStageProgress() {
-    this.stageProgress.clear();
-
-    const width = 510;
-    const x = 105;
-    const y = 104;
-    const ratio = Math.min(1, this.boss?.alive ? 1 : this.time / this.currentStage.bossStartTime);
-    this.stageProgress.roundRect(x, y, width, 5, 3).fill({ color: 0xffffff, alpha: 0.12 });
-    this.stageProgress.roundRect(x, y, width * ratio, 5, 3).fill({ color: 0xaefdf2, alpha: 0.72 });
-
-    const bossX = x + width;
-    this.stageProgress.circle(bossX, y + 2.5, this.boss ? 4.5 : 3.5).fill({
-      color: this.boss ? 0xff72bd : 0xffedf9,
-      alpha: this.boss ? 0.86 : 0.42
-    });
-  }
-
   private get currentHighScore() {
     return this.highScores[this.difficulty.id] ?? 0;
   }
@@ -1109,8 +1086,7 @@ export class GameScene {
         };
       }
 
-      const legacy = window.localStorage.getItem(LEGACY_HIGH_SCORE_KEY);
-      return { casual: 0, normal: legacy ? Number.parseInt(legacy, 10) || 0 : 0, lunatic: 0 };
+      return { casual: 0, normal: 0, lunatic: 0 };
     } catch {
       return { casual: 0, normal: 0, lunatic: 0 };
     }
@@ -1126,7 +1102,7 @@ export class GameScene {
 
   private awardLife(label: string) {
     this.player.addLife();
-    this.floatText("+1 LIFE", this.player.pos.x, this.player.pos.y - 48, 0xfff4a8);
+    this.floatText(t("+1 LIFE"), this.player.pos.x, this.player.pos.y - 48, 0xfff4a8);
     this.showBanner(label, 1.0);
   }
 
@@ -1152,9 +1128,9 @@ export class GameScene {
     this.banner.text = "";
     this.clearFx.visible = true;
     this.clearFxTimer = 0;
-    this.clearTitle.text = `${this.currentStage.title.toUpperCase()} CLEAR`;
-    this.clearStats.text = `${this.difficulty.label} Score ${this.score}\nPower Lv${this.powerLevel + 1} ${this.power}/${MAX_POWER}   Graze ${this.graze}`;
-    this.clearHint.text = "NEXT STAGE\nGet ready";
+    this.clearTitle.text = `${t(this.currentStage.title)} ${t("CLEAR")}`;
+    this.clearStats.text = `${t(this.difficulty.label)} ${t("Score")} ${this.score}\n${t("Power")} Lv${this.powerLevel + 1} ${this.power}/${MAX_POWER}   ${t("Graze")} ${this.graze}`;
+    this.clearHint.text = t("NEXT STAGE\nGet ready");
     this.clearPrompt.text = "";
     this.updateClearResult(0);
   }
@@ -1162,10 +1138,9 @@ export class GameScene {
   private updateStageClearPause(dt: number) {
     this.stageClearTimer = Math.max(0, this.stageClearTimer - dt);
     this.updateClearResult(dt);
-    this.updateHud();
     if (this.stageClearTimer <= 0) {
-      this.clearHint.text = "NEXT STAGE";
-      this.clearPrompt.text = "Press Z / SPACE";
+      this.clearHint.text = t("NEXT STAGE");
+      this.clearPrompt.text = t("Press Z / SPACE");
     }
     if (this.stageClearTimer <= 0 && this.input.wasPressed("z", " ", "enter")) {
       this.hideClearResult();
@@ -1187,7 +1162,7 @@ export class GameScene {
     this.bossPhase = 0;
     this.audio.playMusic(this.getStageMusic());
     this.overlay.position.set(360, 460);
-    this.overlay.text = `${this.currentStage.title.toUpperCase()}\n\n${this.currentStage.subtitle}`;
+    this.overlay.text = `${t(this.currentStage.title)}\n\n${t(this.currentStage.subtitle)}`;
     this.setOverlayPrompt("");
     this.bullets.clear();
     this.items.clear();
@@ -1202,18 +1177,15 @@ export class GameScene {
     }
     this.asteroids.length = 0;
     this.player.prepareForNextStage();
-    this.updateHud();
   }
 
   private updateStageTransition(dt: number) {
     this.stageTransitionTimer = Math.max(0, this.stageTransitionTimer - dt);
-    this.drawStageProgress();
-    this.updateHud();
     if (this.stageTransitionTimer <= 0) {
       this.state = "playing";
       this.overlay.text = "";
       this.setOverlayPrompt("");
-      this.showBanner(`${this.currentStage.title.toUpperCase()}\n${this.currentStage.subtitle}`, 1.4);
+      this.showBanner(`${t(this.currentStage.title)}\n${t(this.currentStage.subtitle)}`, 1.4);
     }
   }
 
@@ -1237,7 +1209,7 @@ export class GameScene {
     if (this.boss?.alive && this.boss.entered) {
       if (this.boss.damage(42)) {
         this.addScore(5000);
-        this.awardLife("BOSS BONUS");
+        this.awardLife(t("BOSS BONUS"));
         this.clearTimer = 0.8;
         this.audio.bossDefeated();
         this.dropBossItems(this.boss.pos.x, this.boss.pos.y);
@@ -1292,14 +1264,14 @@ export class GameScene {
     if (kind === "bomb") {
       this.bombs = Math.min(MAX_BOMBS, this.bombs + 1);
       this.addScore(250);
-      this.floatText("+BOMB", this.player.pos.x, this.player.pos.y - 30, 0xfff4a8);
+      this.floatText(t("+BOMB"), this.player.pos.x, this.player.pos.y - 30, 0xfff4a8);
     } else {
       const previousLevel = this.powerLevel;
       this.power = Math.min(MAX_POWER, this.power + 4);
       this.addScore(80);
-      this.floatText("+ITEM", this.player.pos.x + 22, this.player.pos.y - 18, 0x9ffff4);
+      this.floatText(t("+ITEM"), this.player.pos.x + 22, this.player.pos.y - 18, 0x9ffff4);
       if (this.powerLevel > previousLevel && this.state !== "clear") {
-        this.showBanner(`POWER UP\nLevel ${this.powerLevel + 1}`, 1.0);
+        this.showBanner(`${t("POWER UP")}\n${t("Level")} ${this.powerLevel + 1}`, 1.0);
         this.audio.powerUp();
       }
     }
@@ -1346,7 +1318,7 @@ export class GameScene {
   private addScore(baseScore: number) {
     this.score += Math.round(baseScore * this.difficulty.score);
     while (this.score >= this.nextExtendScore) {
-      this.awardLife("EXTEND");
+      this.awardLife(t("EXTEND"));
       this.nextExtendScore += EXTEND_SCORE_STEP;
     }
   }

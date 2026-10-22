@@ -1,0 +1,19 @@
+<!doctype html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body><div id="app"></div><script type="module">
+import { Application, TextStyle } from "pixi.js";
+import { GameScene } from "/src/systems/GameScene.ts";
+import { loadCharacterAssets } from "/src/systems/VisualFactory.ts";
+import { initializeLocale, UI_FONT } from "/src/systems/I18n.ts";
+import "/src/style.css";
+initializeLocale();
+TextStyle.defaultTextStyle.fontFamily = UI_FONT;
+const app = new Application();
+await app.init({ width: 1920, height: 1080, backgroundAlpha: 0, antialias: true, autoDensity: true, resolution: 1 });
+document.getElementById("app").appendChild(app.canvas);
+await loadCharacterAssets();
+const scene = new GameScene(app);
+await scene.init();
+window.game = { app, scene };
+app.ticker.add(ticker => scene.update(ticker.deltaMS / 1000));
+</script></body></html>

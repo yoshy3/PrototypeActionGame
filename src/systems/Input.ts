@@ -38,6 +38,7 @@ export class Input {
 
       this.addGamepadButton(gamepad, 0, "z");
       this.addGamepadButton(gamepad, 2, "x");
+      this.addGamepadButton(gamepad, 3, "l");
       this.addGamepadButton(gamepad, 5, "shift");
       this.addGamepadButton(gamepad, 9, "escape");
       this.addGamepadButton(gamepad, 12, "arrowup");

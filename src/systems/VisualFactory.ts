@@ -1,4 +1,4 @@
-import { AnimatedSprite, Assets, Container, Graphics, Rectangle, Text, Texture } from "pixi.js";
+import { AnimatedSprite, Assets, Container, Graphics, Rectangle, Texture } from "pixi.js";
 import type { BossKind, BulletKind, BulletOwner, ItemKind, StageEnemyKind, StageEnemyPattern } from "./types";
 
 export type CharacterAnimationState = "idle" | "left" | "right" | "hit";
@@ -162,21 +162,7 @@ export const createBossVisual = (kind: BossKind = "lunarWitch") => {
   aura.circle(0, 0, 64).stroke({ color: kind === "salamander" ? 0xff7a1c : kind === "lunarWitch" ? 0xffd7fb : 0xfff4a8, width: 2, alpha: 0.38 });
   aura.circle(0, 0, 48).stroke({ color: kind === "salamander" ? 0xfff0a0 : kind === "cosmicSorcerer" ? 0x74c9ff : 0x92fff1, width: 2, alpha: 0.32 });
 
-  const label = new Text({
-    text:
-      kind === "salamander"
-        ? "SALAMANDER"
-        : kind === "cosmicSorcerer"
-          ? "COSMIC SORCERER"
-          : kind === "starlightOracle"
-            ? "STARLIGHT ORACLE"
-            : "LUNAR WITCH",
-    style: { fill: 0xffe5f6, fontSize: 13, letterSpacing: 0 }
-  });
-  label.anchor.set(0.5);
-  label.y = 68;
-
-  container.addChild(aura, character, label);
+  container.addChild(aura, character);
   return { container, character };
 };
 
