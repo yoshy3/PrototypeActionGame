@@ -3,6 +3,7 @@ export const UI_FONT = ["Yu Gothic", "Meiryo", "Noto Sans JP", "Arial", "sans-se
 export const LOCALE_KEY = "moonlit-spell-barrage.locale";
 
 export const ja = {
+  "Move": "移動", "Shoot": "ショット", "Bomb": "ボム", "Focus": "低速移動", "Pause": "一時停止", "Boss": "ボス",
   "Beginner": "ビギナー", "Dialogue Script": "台詞", "Character Voice": "キャラクターボイス",
   "Esc / Start to skip": "Esc / Start でスキップ",
   "BOSS DEBUG\nCut-in check start": "ボス検証\n登場演出から開始",
