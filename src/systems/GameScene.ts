@@ -1,8 +1,8 @@
-import { getLocale, setLocale, t } from "./I18n";
+import { DifficultyMenu } from "./DifficultyMenu";
+import { getLocale, setLocale, t, type MessageKey } from "./I18n";
 import { RemasterHud } from "./RemasterHud";
-import { version } from "../../package.json";
 import { Application, Assets, Container, Graphics, Sprite, Text, Texture } from "pixi.js";
-import { AudioSystem, type MusicTrackId } from "./AudioSystem";
+import { AudioSystem, type MusicTrackId, type VoiceId } from "./AudioSystem";
 import { Asteroid } from "./Asteroid";
 import { Boss } from "./Boss";
 import { BulletSystem } from "./BulletSystem";
@@ -13,9 +13,11 @@ import { Input } from "./Input";
 import { ItemSystem } from "./ItemSystem";
 import { MAX_POWER, Player, POWER_STEP } from "./Player";
 import { stages } from "./StageScript";
+import type { BossKind } from "./types";
 
 type GameState =
   | "boot"
+  | "difficulty"
   | "title"
   | "playing"
   | "paused"
@@ -24,9 +26,63 @@ type GameState =
   | "clear"
   | "ending"
   | "gameover";
+const DIFFICULTY_KEY = "moonlit-spell-barrage.difficulty";
 const HIGH_SCORE_KEY = "moonlit-spell-barrage.remaster.highScores";
 const TITLE_IMAGE_URL = new URL("../assets/images/title.png", import.meta.url).href;
 const ENDING_IMAGE_URL = new URL("../assets/images/ending.png", import.meta.url).href;
+const BOSS_STANDING_URLS: Record<BossKind, string> = {
+  lunarWitch: new URL("../assets/characters/boss-lunar-witch-standing.png", import.meta.url).href,
+  starlightOracle: new URL("../assets/characters/boss-starlight-oracle-standing.png", import.meta.url).href,
+  cosmicSorcerer: new URL("../assets/characters/boss-cosmic-sorcerer-standing.png", import.meta.url).href,
+  salamander: new URL("../assets/characters/boss-salamander-standing.png", import.meta.url).href
+};
+const PHASE_VOICES_BY_STAGE: Partial<Record<number, readonly VoiceId[]>> = {
+  1: ["stage1Phase1", "stage1Phase2", "stage1Phase3", "stage1Phase4", "stage1Phase5"],
+  2: ["stage2Phase1", "stage2Phase2", "stage2Phase3", "stage2Phase4", "stage2Phase5"],
+  3: ["stage3Phase1", "stage3Phase2", "stage3Phase3", "stage3Phase4", "stage3Phase5"],
+  4: ["stage4Phase1", "stage4Phase2", "stage4Phase3", "stage4Phase4", "stage4Phase5"]
+};
+type VoiceSubtitleCue = {
+  start: number;
+  end: number;
+  text: MessageKey;
+};
+const PRE_BOSS_SUBTITLES_BY_VOICE: Partial<Record<VoiceId, readonly VoiceSubtitleCue[]>> = {
+  stage1PreBossBattle: [
+    { start: 0.0, end: 2.8, text: "Hmph. To make it this far..." },
+    { start: 2.8, end: 5.68, text: "You have more courage than I expected." },
+    { start: 5.68, end: 10.6, text: "I can see a strong will in your eyes." },
+    { start: 10.6, end: 16.2, text: "But whether it is genuine, I do not yet know." },
+    { start: 16.2, end: 18.6, text: "I am the Lunar Witch." },
+    { start: 18.6, end: 23.0, text: "Now, let us begin while the moon watches over us." }
+  ],
+  stage2PreBossBattle: [
+    { start: 0.0, end: 1.9, text: "I have been waiting." },
+    { start: 1.9, end: 7.32, text: "The stars knew you would find your way here." },
+    { start: 7.32, end: 11.2, text: "The future is not decided by prophecy alone." },
+    { start: 11.2, end: 16.44, text: "Show me that possibility with your own power." },
+    { start: 16.44, end: 22.7, text: "Now, are you ready to accept the guidance of the stars?" }
+  ],
+  stage3PreBossBattle: [
+    { start: 0.0, end: 2.2, text: "Welcome, traveler." },
+    { start: 2.2, end: 6.14, text: "I truly admire that you made it this far." },
+    { start: 6.14, end: 9.3, text: "To go farther," },
+    { start: 9.3, end: 12.82, text: "you need strength even the stars will recognize." },
+    { start: 12.82, end: 15.8, text: "Now, show me that radiance." },
+    { start: 15.8, end: 19.38, text: "I will answer with all my power." },
+    { start: 19.38, end: 24.4, text: "Please, do not let that light fade." }
+  ],
+  stage4PreBossBattle: [
+    { start: 0.0, end: 1.6, text: "Welcome, challenger!" },
+    { start: 1.6, end: 6.0, text: "First, I honor the power that brought you this far." },
+    { start: 6.0, end: 8.5, text: "But if you want to go on," },
+    { start: 8.5, end: 11.5, text: "you will have to surpass me!" },
+    { start: 11.5, end: 14.0, text: "This flame is a light that shines on life." },
+    { start: 14.0, end: 17.2, text: "And a power that burns everything away." },
+    { start: 17.2, end: 20.4, text: "Your resolve and my passion." },
+    { start: 20.4, end: 24.7, text: "Let us see which burns stronger!" }
+  ]
+};
 const AUTO_COLLECT_LINE_Y = 340;
 const ITEM_COLLECT_RADIUS = 40;
 const ASTEROID_HIT_RADIUS_SCALE = 0.52;
@@ -37,11 +93,14 @@ const PAUSE_TITLE_HOLD_TIME = 1.2;
 const ENDING_MIN_INPUT_TIME = 5.0;
 const ENDING_CREDIT_START_Y = 1040;
 const ENDING_CREDIT_SCROLL_SPEED = 42;
+const ENDING_CREDIT_FINAL_Y = 130;
 const ENDING_HINT_Y = 70;
+const PRE_BOSS_WARNING_LEAD_TIME = 2.1;
+const PRE_BOSS_INTRO_DURATION = 2.4;
+const PRE_BOSS_INTRO_FADE_TIME = 0.35;
 const PRESS_PROMPT_BLINK_SPEED = 5.2;
 const PRESS_PROMPT_MIN_ALPHA = 0.34;
 const DEV_BOSS_START_ENABLED = import.meta.env.DEV;
-const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? version;
 type HighScores = Record<DifficultyId, number>;
 type StartOptions = {
   bossDebug?: boolean;
@@ -50,16 +109,21 @@ type StartOptions = {
 
 export class GameScene {
   private readonly audio = new AudioSystem();
-  private readonly input = new Input();
   private readonly root = new Container();
   private readonly center = new Container();
-  private readonly sideHud = new RemasterHud(() => this.toggleLanguage(), APP_VERSION);
+  private readonly difficultyMenu = new DifficultyMenu(
+    index => this.selectDifficulty(index),
+    () => { if (this.state === "difficulty") this.start(); },
+    () => { if (this.state === "difficulty") this.showTitle(); }
+  );
+  private readonly sideHud = new RemasterHud(() => this.toggleLanguage());
   private readonly background = new Graphics();
   private readonly titleArt = new Sprite(Texture.EMPTY);
   private readonly endingLayer = new Container();
   private readonly endingArt = new Sprite(Texture.EMPTY);
   private readonly endingShade = new Graphics();
   private readonly endingCredits = new Container();
+  private readonly bossStandingTextures = new Map<BossKind, Texture>();
   private readonly endingHint = new Text({
     text: "",
     style: {
@@ -130,6 +194,58 @@ export class GameScene {
     text: "",
     style: { fill: 0xaefdf2, fontSize: 18, align: "center", fontWeight: "700", letterSpacing: 0 }
   });
+  private readonly preBossIntro = new Container();
+  private readonly preBossIntroShade = new Graphics();
+  private readonly preBossIntroStripe = new Graphics();
+  private readonly preBossIntroStanding = new Sprite(Texture.EMPTY);
+  private readonly preBossIntroTitle = new Text({
+    text: "",
+    style: {
+      fill: 0xffffff,
+      fontSize: 44,
+      align: "left",
+      fontWeight: "700",
+      letterSpacing: 0,
+      stroke: { color: 0x080412, width: 7 }
+    }
+  });
+  private readonly preBossIntroCaption = new Text({
+    text: "",
+    style: {
+      fill: 0xffe2f3,
+      fontSize: 24,
+      align: "left",
+      fontWeight: "700",
+      letterSpacing: 0,
+      wordWrap: true,
+      wordWrapWidth: 250,
+      stroke: { color: 0x080412, width: 6 }
+    }
+  });
+  private readonly preBossIntroPrompt = new Text({
+    text: "",
+    style: {
+      fill: 0xaefdf2,
+      fontSize: 18,
+      align: "left",
+      fontWeight: "700",
+      letterSpacing: 0,
+      stroke: { color: 0x080412, width: 5 }
+    }
+  });
+  private readonly preBossIntroSubtitle = new Text({
+    text: "",
+    style: {
+      fill: 0xffffff,
+      fontSize: 20,
+      align: "center",
+      fontWeight: "700",
+      letterSpacing: 0,
+      wordWrap: true,
+      wordWrapWidth: 600,
+      stroke: { color: 0x080412, width: 6 }
+    }
+  });
   private readonly pauseTitleProgress = new Graphics();
   private state: GameState = "boot";
   private time = 0;
@@ -137,7 +253,7 @@ export class GameScene {
   private asteroidIndex = 0;
   private boss: Boss | null = null;
   private score = 0;
-  private highScores: HighScores = { casual: 0, normal: 0, lunatic: 0 };
+  private highScores: HighScores = { beginner: 0, casual: 0, normal: 0, lunatic: 0 };
   private graze = 0;
   private power = 0;
   private bombs = 2;
@@ -153,6 +269,11 @@ export class GameScene {
   private pressPromptBlinkTime = 0;
   private bossAsteroidTimer = 0;
   private firestormTimer = 0;
+  private preBossIntroTimer = 0;
+  private preBossSubtitleTimer = 0;
+  private preBossIntroActive = false;
+  private preBossIntroFinished = false;
+  private preBossIntroWaitingForVoice = false;
   private clearWasRecord = false;
   private announcedBoss = false;
   private playedClear = false;
@@ -165,10 +286,18 @@ export class GameScene {
   private pauseTitleHoldTimer = 0;
   private endingCreditScrollY = ENDING_CREDIT_START_Y;
 
-  constructor(private readonly app: Application) {}
+  constructor(
+    private readonly app: Application,
+    private readonly input: Input
+  ) {}
 
   async init() {
     this.highScores = this.loadHighScores();
+    try {
+      const saved = localStorage.getItem(DIFFICULTY_KEY);
+      const index = difficulties.findIndex(difficulty => difficulty.id === saved);
+      if (index >= 0) this.difficultyIndex = index;
+    } catch { /* Use the default when storage is unavailable. */ }
     const titleTexture = (await Assets.load(TITLE_IMAGE_URL)) as Texture;
     this.titleArt.texture = titleTexture;
     this.titleArt.anchor.set(0.5);
@@ -180,6 +309,12 @@ export class GameScene {
     this.endingArt.anchor.set(0.5);
     this.endingArt.position.set(360, 480);
     this.fitEndingArt();
+    await Promise.all(
+      Object.entries(BOSS_STANDING_URLS).map(async ([kind, url]) => {
+        const texture = (await Assets.load(url)) as Texture;
+        this.bossStandingTextures.set(kind as BossKind, texture);
+      })
+    );
 
     this.center.position.set(555, 0);
     this.center.scale.set(1.125);
@@ -218,6 +353,27 @@ export class GameScene {
     this.clearPrompt.position.set(360, 625);
     this.clearFx.visible = false;
     this.clearFx.addChild(this.clearRays, this.clearSparkles, this.clearTitle, this.clearStats, this.clearHint, this.clearPrompt);
+    this.preBossIntro.visible = false;
+    this.preBossIntro.alpha = 0;
+    this.preBossIntroStanding.anchor.set(0.5, 0.5);
+    this.preBossIntroStanding.position.set(500, 498);
+    this.preBossIntroTitle.anchor.set(0, 0.5);
+    this.preBossIntroTitle.position.set(58, 382);
+    this.preBossIntroCaption.anchor.set(0, 0.5);
+    this.preBossIntroCaption.position.set(60, 442);
+    this.preBossIntroPrompt.anchor.set(0, 0.5);
+    this.preBossIntroPrompt.position.set(60, 566);
+    this.preBossIntroSubtitle.anchor.set(0.5, 0.5);
+    this.preBossIntroSubtitle.position.set(360, 820);
+    this.preBossIntro.addChild(
+      this.preBossIntroShade,
+      this.preBossIntroStripe,
+      this.preBossIntroStanding,
+      this.preBossIntroTitle,
+      this.preBossIntroCaption,
+      this.preBossIntroSubtitle,
+      this.preBossIntroPrompt
+    );
     this.endingHint.anchor.set(0.5);
     this.endingHint.position.set(360, 870);
     this.endingPrompt.anchor.set(0.5);
@@ -226,7 +382,7 @@ export class GameScene {
     this.createEndingCredits();
     this.endingHint.position.set(360, ENDING_HINT_Y);
     this.endingLayer.addChild(this.endingArt, this.endingShade, this.endingCredits, this.endingHint, this.endingPrompt);
-    this.ui.addChild(this.clearFx, this.banner, this.overlay, this.overlayPrompt, this.pauseTitleProgress);
+    this.ui.addChild(this.clearFx, this.preBossIntro, this.banner, this.overlay, this.overlayPrompt, this.pauseTitleProgress, this.difficultyMenu.container);
 
     this.drawBackground();
     this.showBootScreen();
@@ -255,7 +411,18 @@ export class GameScene {
       return;
     }
 
-    if (this.input.wasPressed("escape") && (this.state === "playing" || this.state === "paused")) {
+    if (this.state === "difficulty") {
+      this.updateDifficultySelection();
+      if (this.input.wasPressed("escape", "back")) this.showTitle();
+      else if (this.input.wasPressed("z", " ", "enter")) this.start();
+      this.input.endFrame();
+      return;
+    }
+
+    if (this.input.wasPressed("escape") && this.state === "playing" && this.preBossIntroActive) {
+      this.audio.stopVoice();
+      this.finishPreBossIntro();
+    } else if (this.input.wasPressed("escape") && (this.state === "playing" || this.state === "paused")) {
       this.state = this.state === "playing" ? "paused" : "playing";
       this.audio.setPaused(this.state === "paused");
       this.overlay.position.set(360, 460);
@@ -283,7 +450,7 @@ export class GameScene {
     } else if (this.state === "title" && DEV_BOSS_START_ENABLED && this.input.wasPressed("e")) {
       this.beginEnding();
     } else if (this.state === "title" && this.input.wasPressed("z", " ", "enter")) {
-      this.start();
+      this.showDifficultyMenu();
     } else if (this.state === "paused" && this.input.wasPressed("r")) {
       this.start();
     } else if (this.state === "paused") {
@@ -316,9 +483,6 @@ export class GameScene {
       this.showTitle();
     }
 
-    if (this.state === "title") {
-      this.updateTitleSelection();
-    }
 
     if (this.state === "stageClearPause") {
       this.updateStageClearPause(dt);
@@ -352,10 +516,12 @@ export class GameScene {
     this.time += dt;
     this.clearTimer = Math.max(0, this.clearTimer - dt);
     this.updateBanner(dt);
-    if (!this.announcedBoss && this.time >= this.currentStage.bossStartTime - 2.1) {
+    this.updatePreBossIntro(dt);
+    if (!this.announcedBoss && this.time >= this.currentStage.bossStartTime - PRE_BOSS_WARNING_LEAD_TIME) {
       this.announcedBoss = true;
       this.audio.warning();
       this.showBanner(`${t("WARNING")}\n${t(this.currentStage.warningText)}`, 2.0);
+      this.beginPreBossIntro();
     }
 
     if (this.player.update(dt, this.input, this.bullets, { width: 720, height: 960 }, this.power)) {
@@ -383,7 +549,7 @@ export class GameScene {
       asteroid.update(dt);
     }
 
-    if (!this.boss && this.time >= this.currentStage.bossStartTime) {
+    if (!this.boss && this.preBossIntroFinished && this.time >= this.currentStage.bossStartTime) {
       this.boss = new Boss(this.difficulty, this.currentStage.bossKind);
       this.bossPhase = this.boss.getPhase();
       this.playfield.addChild(this.boss.container);
@@ -394,9 +560,11 @@ export class GameScene {
     this.updateBossAsteroidWaves(dt);
     if (this.boss?.alive) {
       if (this.boss.phaseChanged && this.boss.getPhase() !== this.bossPhase) {
+        const endedPhase = this.bossPhase;
         this.bossPhase = this.boss.getPhase();
         this.bullets.clear("enemy");
         this.audio.spellChange();
+        this.playBossPhaseVoice(endedPhase);
         this.showBanner(`${t("SPELL")} ${this.bossPhase + 1}\n${t(this.boss.getSpellName())}`, 1.7);
         this.shake(0.28, 5);
         this.spark(this.boss.pos.x, this.boss.pos.y, 0xffe2f3, 34);
@@ -416,7 +584,9 @@ export class GameScene {
 
     if (!this.player.alive) {
       this.state = "gameover";
+      this.hidePreBossIntro();
       this.audio.playMusic("gameover");
+      this.audio.gameOver();
       this.finishRun("GAME OVER");
     } else if (this.boss && !this.boss.alive && this.clearTimer <= 0) {
       if (this.currentStageIndex < stages.length - 1) {
@@ -437,23 +607,26 @@ export class GameScene {
   }
 
   private start(options: StartOptions = {}) {
+    this.difficultyMenu.container.visible = false;
+    try { localStorage.setItem(DIFFICULTY_KEY, this.difficulty.id); } catch { /* Storage is optional. */ }
     const bossDebug = DEV_BOSS_START_ENABLED && options.bossDebug === true;
     const stageDebug = DEV_BOSS_START_ENABLED ? options.stageDebug ?? 1 : 1;
     this.currentStageIndex = Math.max(0, Math.min(stages.length - 1, stageDebug - 1));
     this.clearPauseTitleProgress();
     this.audio.resume();
     this.audio.setPaused(false);
-    this.audio.playMusic(bossDebug ? this.getBossMusic() : this.getStageMusic());
+    this.hidePreBossIntro();
+    this.audio.playMusic(this.getStageMusic());
     this.state = "playing";
     this.titleArt.visible = false;
     this.playfield.visible = true;
     this.overlay.position.set(360, 460);
-    this.time = bossDebug ? this.currentStage.bossStartTime : 0;
+    this.time = bossDebug ? Math.max(0, this.currentStage.bossStartTime - PRE_BOSS_WARNING_LEAD_TIME - 0.12) : 0;
     this.spawnIndex = bossDebug ? this.currentStage.spawns.length : 0;
     this.asteroidIndex = bossDebug ? (this.currentStage.obstacles?.length ?? 0) : 0;
     this.score = 0;
     this.graze = 0;
-    this.power = bossDebug || this.currentStageIndex > 0 ? MAX_POWER : 0;
+    this.power = bossDebug || this.currentStageIndex > 0 || this.difficulty.id === "beginner" ? MAX_POWER : 0;
     this.bombs = 2;
     this.nextExtendScore = FIRST_EXTEND_SCORE;
     this.clearTimer = 0;
@@ -462,9 +635,14 @@ export class GameScene {
     this.stageClearTimer = 0;
     this.bossAsteroidTimer = 0;
     this.firestormTimer = 0;
+    this.preBossIntroTimer = 0;
+    this.preBossSubtitleTimer = 0;
+    this.preBossIntroActive = false;
+    this.preBossIntroWaitingForVoice = false;
+    this.preBossIntroFinished = false;
     this.flashTimer = 0;
     this.bannerTimer = 0;
-    this.announcedBoss = bossDebug;
+    this.announcedBoss = false;
     this.playedClear = false;
     this.bossPhase = 0;
     this.clearWasRecord = false;
@@ -488,23 +666,26 @@ export class GameScene {
     }
     this.asteroids.length = 0;
 
-    this.player.reset();
+    this.player.reset(this.difficulty.id);
     if (!this.playfield.children.includes(this.player.container)) {
       this.playfield.addChild(this.player.container);
     }
     if (bossDebug) {
-      this.showBanner(t("BOSS DEBUG\nFull power start"), 1.4);
+      this.showBanner(t("BOSS DEBUG\nCut-in check start"), 1.4);
     } else if (this.currentStageIndex > 0) {
       this.showBanner(`${t(this.currentStage.title)}\n${t("Full power debug start")}`, 1.4);
     }
+    this.audio.gameStart();
   }
 
   private showTitle() {
+    this.difficultyMenu.container.visible = false;
     this.state = "title";
     this.banner.text = "";
     this.bannerTimer = 0;
     this.clearPauseTitleProgress();
     this.audio.setPaused(false);
+    this.hidePreBossIntro();
     this.audio.playMusic("title");
     this.titleArt.visible = true;
     this.playfield.visible = false;
@@ -520,7 +701,7 @@ export class GameScene {
     this.asteroids.length = 0;
     this.boss?.container.destroy();
     this.boss = null;
-    this.player.reset();
+    this.player.reset(this.difficulty.id);
     this.hideClearResult();
     this.hideEnding();
     this.overlay.position.set(360, 520);
@@ -535,6 +716,135 @@ export class GameScene {
 
   private getStageMusic(): MusicTrackId {
     return this.currentStage.stageMusic ?? "stage";
+  }
+
+  private beginPreBossIntro() {
+    this.banner.text = "";
+    this.bannerTimer = 0;
+    this.preBossIntroTimer = 0;
+    this.preBossSubtitleTimer = 0;
+    this.preBossIntroActive = true;
+    this.preBossIntroFinished = false;
+    this.preBossIntroWaitingForVoice = this.currentStage.preBossVoice !== undefined;
+    this.spawnIndex = this.currentStage.spawns.length;
+    this.clearPreBossHazards();
+
+    const texture = this.bossStandingTextures.get(this.currentStage.bossKind);
+    if (texture) {
+      this.preBossIntroStanding.texture = texture;
+      this.fitPreBossStanding();
+    }
+
+    this.preBossIntroTitle.text = t("WARNING");
+    this.preBossIntroCaption.text = t(this.currentStage.warningText);
+    this.preBossIntroPrompt.text = t("Esc / Start to skip");
+    this.preBossIntroSubtitle.text = "";
+    this.drawPreBossIntro();
+    this.preBossIntro.visible = true;
+    this.preBossIntro.alpha = 0;
+
+    if (this.currentStage.preBossVoice) {
+      this.audio.playVoice(this.currentStage.preBossVoice, () => {
+        if (!this.preBossIntroActive) {
+          return;
+        }
+        this.preBossIntroWaitingForVoice = false;
+        this.preBossIntroTimer = Math.max(0, PRE_BOSS_INTRO_DURATION - PRE_BOSS_INTRO_FADE_TIME);
+      }, true);
+    }
+  }
+
+  private updatePreBossIntro(dt: number) {
+    if (!this.preBossIntroActive) {
+      return;
+    }
+
+    this.preBossIntroTimer += dt;
+    this.preBossSubtitleTimer += dt;
+    const fadeIn = Math.min(1, this.preBossIntroTimer / PRE_BOSS_INTRO_FADE_TIME);
+    const fadeOut = this.preBossIntroWaitingForVoice
+      ? 1
+      : Math.max(0, Math.min(1, (PRE_BOSS_INTRO_DURATION - this.preBossIntroTimer) / PRE_BOSS_INTRO_FADE_TIME));
+    this.preBossIntro.alpha = Math.min(fadeIn, fadeOut);
+    this.preBossIntroPrompt.alpha =
+      PRESS_PROMPT_MIN_ALPHA + (1 - PRESS_PROMPT_MIN_ALPHA) * (0.5 + Math.sin(this.preBossIntroTimer * PRESS_PROMPT_BLINK_SPEED) * 0.5);
+    this.preBossIntroStanding.x = 500 + Math.sin(this.preBossIntroTimer * 1.6) * 4;
+    this.preBossIntroStanding.y = 498 + Math.cos(this.preBossIntroTimer * 1.2) * 3;
+    this.updatePreBossSubtitle();
+
+    if (!this.preBossIntroWaitingForVoice && this.preBossIntroTimer >= PRE_BOSS_INTRO_DURATION) {
+      this.finishPreBossIntro();
+    }
+  }
+
+  private finishPreBossIntro() {
+    this.preBossIntroActive = false;
+    this.preBossIntroFinished = true;
+    this.preBossIntroWaitingForVoice = false;
+    this.preBossSubtitleTimer = 0;
+    this.preBossIntro.visible = false;
+    this.preBossIntro.alpha = 0;
+    this.preBossIntroPrompt.alpha = 1;
+    this.preBossIntroSubtitle.text = "";
+  }
+
+  private hidePreBossIntro(stopVoice = true) {
+    if (stopVoice) {
+      this.audio.stopVoice();
+    }
+    this.preBossIntroTimer = 0;
+    this.preBossSubtitleTimer = 0;
+    this.preBossIntroActive = false;
+    this.preBossIntroFinished = false;
+    this.preBossIntroWaitingForVoice = false;
+    this.preBossIntro.visible = false;
+    this.preBossIntro.alpha = 0;
+    this.preBossIntroPrompt.alpha = 1;
+    this.preBossIntroSubtitle.text = "";
+  }
+
+  private updatePreBossSubtitle() {
+    const voice = this.currentStage.preBossVoice;
+    const subtitles = voice ? PRE_BOSS_SUBTITLES_BY_VOICE[voice] : undefined;
+    if (!subtitles || !this.preBossIntroWaitingForVoice) {
+      this.preBossIntroSubtitle.text = "";
+      return;
+    }
+
+    const cue = subtitles.find((entry) => this.preBossSubtitleTimer >= entry.start && this.preBossSubtitleTimer < entry.end);
+    this.preBossIntroSubtitle.text = cue ? t(cue.text) : "";
+  }
+
+  private drawPreBossIntro() {
+    this.preBossIntroShade.clear();
+    this.preBossIntroShade.rect(0, 260, 720, 330).fill({ color: 0x080412, alpha: 0.82 });
+    this.preBossIntroShade.rect(0, 0, 720, 960).fill({ color: 0x000000, alpha: 0.18 });
+
+    this.preBossIntroStripe.clear();
+    this.preBossIntroStripe.rect(0, 260, 720, 4).fill({ color: 0xff72bd, alpha: 0.82 });
+    this.preBossIntroStripe.rect(0, 586, 720, 4).fill({ color: 0xaefdf2, alpha: 0.72 });
+    this.preBossIntroStripe.rect(42, 404, 300, 2).fill({ color: 0xfff4a8, alpha: 0.52 });
+  }
+
+  private fitPreBossStanding() {
+    const width = this.preBossIntroStanding.texture.width;
+    const height = this.preBossIntroStanding.texture.height;
+    if (width <= 0 || height <= 0) {
+      return;
+    }
+
+    const scale = Math.min(360 / width, 520 / height, 1);
+    this.preBossIntroStanding.scale.set(scale);
+  }
+
+  private playBossPhaseVoice(phase: number) {
+    const phaseVoices = PHASE_VOICES_BY_STAGE[this.currentStage.id];
+    if (!phaseVoices) {
+      return;
+    }
+
+    const voice = phaseVoices[Math.max(0, Math.min(phaseVoices.length - 1, phase))];
+    this.audio.playVoice(voice);
   }
 
   private updatePausedTitleReturn(dt: number) {
@@ -574,6 +884,7 @@ export class GameScene {
 
   private showBootScreen() {
     this.state = "boot";
+    this.hidePreBossIntro();
     this.titleArt.visible = true;
     this.playfield.visible = false;
     this.hideClearResult();
@@ -640,6 +951,11 @@ export class GameScene {
 
   private updateFirestorm(dt: number) {
     if (this.currentStage.id !== 4 || (this.boss !== null && !this.boss.alive)) {
+      this.firestormTimer = 0;
+      return;
+    }
+
+    if (this.preBossIntroActive) {
       this.firestormTimer = 0;
       return;
     }
@@ -714,6 +1030,7 @@ export class GameScene {
             this.awardLife(t("BOSS BONUS"));
             this.clearTimer = 0.8;
             this.bullets.clear("enemy");
+            this.playBossPhaseVoice(this.bossPhase);
             this.audio.bossDefeated();
             this.dropBossItems(this.boss.pos.x, this.boss.pos.y);
             this.shake(0.42, 9);
@@ -724,7 +1041,9 @@ export class GameScene {
         }
       } else if (this.player.alive && circlesOverlap(bullet.pos, bullet.radius, this.player.pos, this.player.radius)) {
         if (this.player.damage()) {
-          this.power = Math.max(0, this.power - POWER_STEP);
+          if (this.difficulty.id !== "beginner") {
+            this.power = Math.max(0, this.power - POWER_STEP);
+          }
           this.audio.playerHit();
           this.bullets.kill(bullet);
           this.bullets.clear("enemy");
@@ -766,7 +1085,9 @@ export class GameScene {
       const distance = distanceToSegment(this.player.pos, start, end);
       if (distance <= laser.width * 0.5 + this.player.radius) {
         if (this.player.damage()) {
-          this.power = Math.max(0, this.power - POWER_STEP);
+          if (this.difficulty.id !== "beginner") {
+            this.power = Math.max(0, this.power - POWER_STEP);
+          }
           this.audio.playerHit();
           this.bullets.clear("enemy");
           this.shake(0.34, 8);
@@ -789,7 +1110,9 @@ export class GameScene {
         circlesOverlap(asteroid.pos, asteroid.radius * ASTEROID_HIT_RADIUS_SCALE, this.player.pos, 0)
       ) {
         if (this.player.damage()) {
-          this.power = Math.max(0, this.power - POWER_STEP);
+          if (this.difficulty.id !== "beginner") {
+            this.power = Math.max(0, this.power - POWER_STEP);
+          }
           this.audio.playerHit();
           this.bullets.clear("enemy");
           this.shake(0.34, 8);
@@ -807,6 +1130,14 @@ export class GameScene {
     }
   }
 
+  private clearPreBossHazards() {
+    for (const enemy of this.enemies) {
+      enemy.destroy();
+    }
+    this.enemies.length = 0;
+    this.bullets.clear("enemy");
+  }
+
   private cleanupAsteroids() {
     for (let i = this.asteroids.length - 1; i >= 0; i -= 1) {
       if (!this.asteroids[i].alive) {
@@ -816,7 +1147,7 @@ export class GameScene {
   }
 
   private updateHud() {
-    const inRun = this.state !== "boot" && this.state !== "title";
+    const inRun = this.state !== "boot" && this.state !== "title" && this.state !== "difficulty";
     const names = { lunarWitch: "Lunar Witch", starlightOracle: "Starlight Oracle", cosmicSorcerer: "Cosmic Sorcerer", salamander: "Salamander" } as const;
     this.sideHud.update({
       lives: this.player.hp, bombs: this.bombs, power: inRun ? this.power : 0,
@@ -826,26 +1157,37 @@ export class GameScene {
       muted: this.audio.isMuted(), stage: t(this.currentStage.title), subtitle: t(this.currentStage.subtitle),
       progress: inRun ? Math.min(1, this.time / this.currentStage.bossStartTime) : 0,
       boss: this.boss?.alive ? { name: t(names[this.currentStage.bossKind]), spell: t(this.boss.getSpellName()), hp: Math.max(0, this.boss.hp), maxHp: this.boss.maxHp, phase: this.boss.getPhase() + 1, thresholds: this.boss.getPhaseThresholds() } : undefined,
-      canChangeLanguage: this.state === "title" || this.state === "paused", inRun
+      canChangeLanguage: this.state === "title", inRun
     });
   }
 
   private toggleLanguage() {
-    if (this.state !== "title" && this.state !== "paused") return;
+    if (this.state !== "title") return;
     setLocale(getLocale() === "ja" ? "en" : "ja");
     for (const child of this.endingCredits.removeChildren()) child.destroy();
     this.createEndingCredits();
-    if (this.state === "title") this.refreshTitleText();
-    else {
-      this.overlay.text = t("PAUSED\n\nEsc/Start to resume\nR to retry");
-      this.setOverlayPrompt(t("Hold Z / SPACE to title"), 650);
-      this.banner.text = "";
-    }
+    this.refreshTitleText();
   }
 
   private refreshTitleText() {
-    this.overlay.text = `${t("Difficulty")}: ${t(this.difficulty.label)}\nRemaster ${APP_VERSION}\n\n${t("Left/Right or 1-3 to change")}${DEV_BOSS_START_ENABLED ? "\n\n" + t("B: Stage 1 boss   V/C/F: Stage 2/3/4\nN/G/H: Stage 2/3/4 boss   E: Ending") : ""}`;
-    this.setOverlayPrompt(t("Z / SPACE to start"), this.getOverlayBottom() + 44);
+    this.overlay.text = DEV_BOSS_START_ENABLED ? t("B: Stage 1 boss   V/C/F: Stage 2/3/4\nN/G/H: Stage 2/3/4 boss   E: Ending") : "";
+    this.setOverlayPrompt(t("Z / SPACE to start"), 660);
+  }
+
+  private showDifficultyMenu() {
+    this.state = "difficulty";
+    this.overlay.text = "";
+    this.setOverlayPrompt("");
+    this.difficultyMenu.container.visible = true;
+    this.difficultyMenu.refresh(this.difficultyIndex);
+  }
+
+  private selectDifficulty(index: number) {
+    if (this.state !== "difficulty") return;
+    this.difficultyIndex = index;
+    try { localStorage.setItem(DIFFICULTY_KEY, this.difficulty.id); } catch { /* Storage is optional. */ }
+    this.audio.graze();
+    this.difficultyMenu.refresh(index);
   }
 
   private finishRun(title: "GAME OVER" | "STAGE CLEAR") {
@@ -884,12 +1226,8 @@ export class GameScene {
 
   private refreshClearResultText(wasRecord: boolean) {
     this.clearStats.text = `${t(this.difficulty.label)} ${t("Score")} ${this.score}\n${t("Power")} Lv${this.powerLevel + 1} ${this.power}/${MAX_POWER}   ${t("Graze")} ${this.graze}\n${t("Best")} ${this.currentHighScore}`;
-    this.clearHint.text =
-      this.clearInputTimer > 0
-        ? `${wasRecord ? t("NEW RECORD") : t("RUN COMPLETE")}\n${t("Please wait...")}`
-        : `${wasRecord ? t("NEW RECORD") : t("RUN COMPLETE")}${this.isFinalStage ? "" : "\n" + t("R to retry")}`;
-    this.clearPrompt.text =
-      this.clearInputTimer > 0 ? "" : this.isFinalStage ? t("Press Z / SPACE for ending") : t("Z / SPACE to title");
+    this.clearHint.text = wasRecord ? t("NEW RECORD") : t("RUN COMPLETE");
+    this.clearPrompt.text = this.clearInputTimer > 0 ? t("Please wait...") : this.isFinalStage ? t("Press Z / SPACE for ending") : t("Z / SPACE to title");
   }
 
   private hideClearResult() {
@@ -922,6 +1260,7 @@ export class GameScene {
     this.state = "ending";
     this.endingInputTimer = ENDING_MIN_INPUT_TIME;
     this.endingCreditScrollY = ENDING_CREDIT_START_Y;
+    this.hidePreBossIntro();
     this.audio.playMusic("ending");
     this.hideClearResult();
     this.titleArt.visible = false;
@@ -966,22 +1305,24 @@ export class GameScene {
 
   private updateEndingState(dt: number) {
     this.endingInputTimer = Math.max(0, this.endingInputTimer - dt);
-    const centeredY = (960 - this.endingCredits.height) / 2;
-    this.endingCreditScrollY = Math.max(centeredY, this.endingCreditScrollY - ENDING_CREDIT_SCROLL_SPEED * dt);
+    this.endingCreditScrollY = Math.max(ENDING_CREDIT_FINAL_Y, this.endingCreditScrollY - ENDING_CREDIT_SCROLL_SPEED * dt);
     this.endingCredits.y = this.endingCreditScrollY;
     this.refreshEndingHint();
   }
 
   private createEndingCredits() {
-    const lines: Array<{ text: string; kind: "title" | "heading" | "role" | "tool" | "gap" }> = [
+    const lines: Array<{ text: string; kind: "title" | "heading" | "role" | "tool" | "gap"; height?: number }> = [
       { text: "MOONLIT SPELL BARRAGE", kind: "title" },
-      { text: "", kind: "gap" },
-      { text: t("Inspired by Touhou Project"), kind: "heading" },
-      { text: "", kind: "gap" },
+      { text: "", kind: "gap", height: 32 },
+      { text: "Inspired by Touhou Project", kind: "heading" },
+      { text: "", kind: "gap", height: 30 },
       { text: t("Staff"), kind: "heading" },
-      { text: "", kind: "gap" },
+      { text: "", kind: "gap", height: 26 },
       { text: t("Programmer"), kind: "role" },
       { text: "Codex App (GPT-5.5)", kind: "tool" },
+      { text: "", kind: "gap" },
+      { text: t("Dialogue Script"), kind: "role" },
+      { text: "ChatGPT", kind: "tool" },
       { text: "", kind: "gap" },
       { text: t("Graphics Artist"), kind: "role" },
       { text: "ChatGPT Image 2", kind: "tool" },
@@ -991,14 +1332,17 @@ export class GameScene {
       { text: "Stable Audio", kind: "tool" },
       { text: "", kind: "gap" },
       { text: t("SFX Designer"), kind: "role" },
-      { text: "ElevenCreative", kind: "tool" },
-      { text: "Bfxr", kind: "tool" }
+      { text: "ElevenLabs", kind: "tool" },
+      { text: "Bfxr", kind: "tool" },
+      { text: "", kind: "gap" },
+      { text: t("Character Voice"), kind: "role" },
+      { text: "ElevenLabs", kind: "tool" }
     ];
 
     let y = 0;
     for (const line of lines) {
       if (line.kind === "gap") {
-        y += 34;
+        y += line.height ?? 22;
         continue;
       }
 
@@ -1018,7 +1362,7 @@ export class GameScene {
       label.anchor.set(0.5, 0);
       label.position.set(360, y);
       this.endingCredits.addChild(label);
-      y += line.kind === "title" ? 62 : line.kind === "heading" ? 52 : line.kind === "role" ? 38 : 32;
+      y += line.kind === "title" ? 54 : line.kind === "heading" ? 40 : line.kind === "role" ? 31 : 26;
     }
   }
 
@@ -1037,15 +1381,15 @@ export class GameScene {
 
   private getEndingCreditFontSize(kind: "title" | "heading" | "role" | "tool") {
     if (kind === "title") {
-      return 42;
+      return 36;
     }
     if (kind === "heading") {
-      return 25;
+      return 22;
     }
     if (kind === "role") {
-      return 28;
+      return 24;
     }
-    return 22;
+    return 20;
   }
 
   private refreshEndingHint() {
@@ -1057,7 +1401,7 @@ export class GameScene {
     this.pressPromptBlinkTime += dt;
     const alpha = PRESS_PROMPT_MIN_ALPHA + (1 - PRESS_PROMPT_MIN_ALPHA) * (0.5 + Math.sin(this.pressPromptBlinkTime * PRESS_PROMPT_BLINK_SPEED) * 0.5);
     this.overlayPrompt.alpha = this.overlayPrompt.text ? alpha : 1;
-    this.clearPrompt.alpha = this.clearPrompt.text ? alpha : 1;
+    this.clearPrompt.alpha = this.clearPrompt.text && this.clearPrompt.text !== "Please wait..." ? alpha : 1;
     this.endingPrompt.alpha = this.endingPrompt.text ? alpha : 1;
   }
 
@@ -1080,15 +1424,16 @@ export class GameScene {
       if (value) {
         const parsed = JSON.parse(value) as Partial<HighScores>;
         return {
+          beginner: Number(parsed.beginner) || 0,
           casual: Number(parsed.casual) || 0,
           normal: Number(parsed.normal) || 0,
           lunatic: Number(parsed.lunatic) || 0
         };
       }
 
-      return { casual: 0, normal: 0, lunatic: 0 };
+      return { beginner: 0, casual: 0, normal: 0, lunatic: 0 };
     } catch {
-      return { casual: 0, normal: 0, lunatic: 0 };
+      return { beginner: 0, casual: 0, normal: 0, lunatic: 0 };
     }
   }
 
@@ -1104,11 +1449,15 @@ export class GameScene {
     this.player.addLife();
     this.floatText(t("+1 LIFE"), this.player.pos.x, this.player.pos.y - 48, 0xfff4a8);
     this.showBanner(label, 1.0);
+    if (label === "EXTEND") {
+      this.audio.extend();
+    }
   }
 
   private beginStageClearPause() {
     this.state = "stageClearPause";
     this.stageClearTimer = 4.0;
+    this.hidePreBossIntro(false);
     this.audio.playMusic("clear");
     this.audio.clear();
     this.bullets.clear();
@@ -1130,8 +1479,8 @@ export class GameScene {
     this.clearFxTimer = 0;
     this.clearTitle.text = `${t(this.currentStage.title)} ${t("CLEAR")}`;
     this.clearStats.text = `${t(this.difficulty.label)} ${t("Score")} ${this.score}\n${t("Power")} Lv${this.powerLevel + 1} ${this.power}/${MAX_POWER}   ${t("Graze")} ${this.graze}`;
-    this.clearHint.text = t("NEXT STAGE\nGet ready");
-    this.clearPrompt.text = "";
+    this.clearHint.text = t("NEXT STAGE");
+    this.clearPrompt.text = t("Please wait...");
     this.updateClearResult(0);
   }
 
@@ -1160,6 +1509,7 @@ export class GameScene {
     this.clearTimer = 0;
     this.announcedBoss = false;
     this.bossPhase = 0;
+    this.hidePreBossIntro();
     this.audio.playMusic(this.getStageMusic());
     this.overlay.position.set(360, 460);
     this.overlay.text = `${t(this.currentStage.title)}\n\n${t(this.currentStage.subtitle)}`;
@@ -1211,6 +1561,7 @@ export class GameScene {
         this.addScore(5000);
         this.awardLife(t("BOSS BONUS"));
         this.clearTimer = 0.8;
+        this.playBossPhaseVoice(this.bossPhase);
         this.audio.bossDefeated();
         this.dropBossItems(this.boss.pos.x, this.boss.pos.y);
       }
@@ -1234,7 +1585,8 @@ export class GameScene {
     if (generous || Math.random() < 0.18) {
       this.items.spawn("score", { x: x + 12, y }, 24);
     }
-    if (Math.random() < (generous ? 0.12 : 0.06)) {
+    const bombProb = (generous ? 0.12 : 0.06) * (this.difficulty.id === "beginner" ? 2 : 1);
+    if (Math.random() < bombProb) {
       this.items.spawn("bomb", { x, y: y - 8 });
     }
   }
@@ -1267,10 +1619,12 @@ export class GameScene {
       this.floatText(t("+BOMB"), this.player.pos.x, this.player.pos.y - 30, 0xfff4a8);
     } else {
       const previousLevel = this.powerLevel;
-      this.power = Math.min(MAX_POWER, this.power + 4);
+      if (this.difficulty.id !== "beginner") {
+        this.power = Math.min(MAX_POWER, this.power + 4);
+      }
       this.addScore(80);
       this.floatText(t("+ITEM"), this.player.pos.x + 22, this.player.pos.y - 18, 0x9ffff4);
-      if (this.powerLevel > previousLevel && this.state !== "clear") {
+      if (this.difficulty.id !== "beginner" && this.powerLevel > previousLevel && this.state !== "clear") {
         this.showBanner(`${t("POWER UP")}\n${t("Level")} ${this.powerLevel + 1}`, 1.0);
         this.audio.powerUp();
       }
@@ -1294,24 +1648,15 @@ export class GameScene {
     return Math.min(3, Math.floor(this.power / POWER_STEP));
   }
 
-  private updateTitleSelection() {
-    const previous = this.difficultyIndex;
-    if (this.input.wasPressed("arrowleft", "a")) {
-      this.difficultyIndex = (this.difficultyIndex + difficulties.length - 1) % difficulties.length;
-    } else if (this.input.wasPressed("arrowright", "d")) {
-      this.difficultyIndex = (this.difficultyIndex + 1) % difficulties.length;
-    } else if (this.input.wasPressed("1")) {
-      this.difficultyIndex = 0;
-    } else if (this.input.wasPressed("2")) {
-      this.difficultyIndex = 1;
-    } else if (this.input.wasPressed("3")) {
-      this.difficultyIndex = 2;
-    }
-
-    if (previous !== this.difficultyIndex) {
-      this.audio.resume();
-      this.audio.graze();
-      this.showTitle();
+  private updateDifficultySelection() {
+    if (this.input.wasPressed("arrowup", "w", "arrowleft", "a")) {
+      this.selectDifficulty((this.difficultyIndex + difficulties.length - 1) % difficulties.length);
+    } else if (this.input.wasPressed("arrowdown", "s", "arrowright", "d")) {
+      this.selectDifficulty((this.difficultyIndex + 1) % difficulties.length);
+    } else {
+      difficulties.forEach((_, index) => {
+        if (this.input.wasPressed(String(index + 1))) this.selectDifficulty(index);
+      });
     }
   }
 

@@ -2,6 +2,8 @@ import { Application, TextStyle } from "pixi.js";
 import "./style.css";
 import { t, initializeLocale, UI_FONT } from "./systems/I18n";
 import { GameScene } from "./systems/GameScene";
+import { Input } from "./systems/Input";
+import { VirtualGamepad } from "./systems/VirtualGamepad";
 import { loadCharacterAssets } from "./systems/VisualFactory";
 
 initializeLocale();
@@ -54,7 +56,10 @@ async function start() {
 
     await loadCharacterAssets();
 
-    const scene = new GameScene(app);
+    const input = new Input();
+    new VirtualGamepad(input);
+
+    const scene = new GameScene(app, input);
     await scene.init();
 
     app.ticker.add((ticker) => {

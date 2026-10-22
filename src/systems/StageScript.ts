@@ -250,6 +250,7 @@ export const stages: StageDefinition[] = [
     subtitle: "Moonlit shrine approach",
     warningText: "Lunar Witch approaches",
     bossKind: "lunarWitch",
+    preBossVoice: "stage1PreBossBattle",
     spawns: stageOneSpawns,
     bossStartTime: 88.0
   },
@@ -260,6 +261,7 @@ export const stages: StageDefinition[] = [
     warningText: "Starlight Oracle descends",
     bossKind: "starlightOracle",
     stageMusic: "stage2",
+    preBossVoice: "stage2PreBossBattle",
     spawns: doubleStageSpawns(stageTwoSpawns),
     bossStartTime: 90.0
   },
@@ -271,6 +273,7 @@ export const stages: StageDefinition[] = [
     bossKind: "cosmicSorcerer",
     stageMusic: "stage3",
     bossMusic: "boss",
+    preBossVoice: "stage3PreBossBattle",
     spawns: thickenStageSpawns(stageThreeSpawns),
     obstacles: stageThreeAsteroids,
     bossStartTime: 92.0
@@ -283,6 +286,7 @@ export const stages: StageDefinition[] = [
     bossKind: "salamander",
     stageMusic: "stage4",
     bossMusic: "lastBoss",
+    preBossVoice: "stage4PreBossBattle",
     spawns: stageFourSpawns,
     bossStartTime: 92.0
   }

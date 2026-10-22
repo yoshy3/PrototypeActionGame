@@ -19,8 +19,9 @@ export class RemasterHud {
   private readonly bars = new Graphics();
   private readonly language = this.label(82, 986, 26);
   private readonly languageBackground = new Graphics();
+  private readonly languageKeys = new Container();
 
-  constructor(onLanguage: () => void, version: string) {
+  constructor(onLanguage: () => void) {
     const background = new Graphics().rect(0, 0, 1920, 1080).fill(0x100c1d);
     for (const x of [32, 1397]) {
       background.roundRect(x, 135, 491, 810, 18).fill({ color: 0x21172f, alpha: 0.9 });
@@ -28,14 +29,23 @@ export class RemasterHud {
     }
     const title = this.label(60, 46, 30);
     title.text = "MOONLIT\nSPELL BARRAGE";
-    const edition = this.label(1420, 60, 28);
-    edition.text = `REMASTER ${version}`;
     this.languageBackground.roundRect(60, 970, 435, 64, 12).fill(0x3a254e).stroke({ color: 0xaefdf2, width: 1, alpha: 0.5 });
     this.languageBackground.eventMode = "static";
     this.languageBackground.cursor = "pointer";
     this.languageBackground.on("pointertap", onLanguage);
     this.language.eventMode = "none";
-    this.container.addChild(background, title, edition, this.player, this.controls, this.records, this.encounter, this.tip, this.bars, this.languageBackground, this.language);
+    // A square keyboard key and a controller silhouette distinguish the two inputs.
+    const keys = new Graphics().roundRect(350, 985, 34, 34, 5).stroke({ color: 0xffedf9, width: 2 });
+    keys.roundRect(405, 982, 72, 40, 13).fill(0x17111f).stroke({ color: 0xffedf9, width: 2 });
+    keys.moveTo(418, 994).lineTo(418, 1010).moveTo(410, 1002).lineTo(426, 1002).stroke({ color: 0xffedf9, width: 3 });
+    keys.circle(457, 1002, 12).fill(0xffd477);
+    const keyL = new Text({ text: "L", style: { fontSize: 22, fill: 0xffffff } });
+    keyL.anchor.set(0.5); keyL.position.set(367, 1002);
+    const keyY = new Text({ text: "Y", style: { fontSize: 18, fill: 0x17111f, fontWeight: "700" } });
+    keyY.anchor.set(0.5); keyY.position.set(457, 1002);
+    this.languageKeys.addChild(keys, keyL, keyY);
+    this.languageKeys.eventMode = "none";
+    this.container.addChild(background, title, this.player, this.controls, this.records, this.encounter, this.tip, this.bars, this.languageBackground, this.language, this.languageKeys);
   }
 
   private label(x: number, y: number, size: number) {
@@ -52,9 +62,9 @@ export class RemasterHud {
     this.encounter.text = data.boss
       ? `${data.boss.name}\n${t("Phase")} ${data.boss.phase} / 5\n${data.boss.spell}\n${Math.ceil(data.boss.hp)} / ${Math.ceil(data.boss.maxHp)} HP`
       : `${data.stage}\n${data.subtitle}\n${t("Stage progress")}  ${Math.floor(data.progress * 100)}%`;
-    this.language.text = `${getLocale() === "ja" ? "日本語 → English" : "English → 日本語"}   [L / Y]`;
+    this.language.text = getLocale() === "ja" ? "日本語 → English" : "English → 日本語";
     this.tip.text = t(data.inRun ? "Auto-collect above the line" : "Graze bullets for bonus score");
-    this.languageBackground.visible = this.language.visible = data.canChangeLanguage;
+    this.languageBackground.visible = this.language.visible = this.languageKeys.visible = data.canChangeLanguage;
     this.bars.clear();
     this.bar(60, 550, data.power / 120, 0xfff4a8);
     if (data.inRun) this.bar(1420, 895, data.boss ? data.boss.hp / data.boss.maxHp : data.progress, data.boss ? 0xff72bd : 0xaefdf2);

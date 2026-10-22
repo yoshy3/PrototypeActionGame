@@ -1,6 +1,6 @@
 import type { MessageKey } from "./I18n";
 import type { AnimatedSprite, Container, Graphics } from "pixi.js";
-import type { MusicTrackId } from "./AudioSystem";
+import type { MusicTrackId, VoiceId } from "./AudioSystem";
 
 export type Vector = {
   x: number;
@@ -119,6 +119,7 @@ export type StageDefinition = {
   bossKind: BossKind;
   stageMusic?: MusicTrackId;
   bossMusic?: MusicTrackId;
+  preBossVoice?: VoiceId;
   spawns: EnemySpawn[];
   obstacles?: AsteroidSpawn[];
   bossStartTime: number;

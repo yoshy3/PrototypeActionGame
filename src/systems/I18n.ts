@@ -3,6 +3,39 @@ export const UI_FONT = ["Yu Gothic", "Meiryo", "Noto Sans JP", "Arial", "sans-se
 export const LOCALE_KEY = "moonlit-spell-barrage.locale";
 
 export const ja = {
+  "Beginner": "ビギナー", "Dialogue Script": "台詞", "Character Voice": "キャラクターボイス",
+  "Esc / Start to skip": "Esc / Start でスキップ",
+  "BOSS DEBUG\nCut-in check start": "ボス検証\n登場演出から開始",
+  "Hmph. To make it this far...": "ふん、ここまで来るとは……",
+  "You have more courage than I expected.": "思った以上に勇気があるようね。",
+  "I can see a strong will in your eyes.": "その瞳には、強い意志が見える。",
+  "But whether it is genuine, I do not yet know.": "でも、それが本物かどうかは、まだわからない。",
+  "I am the Lunar Witch.": "私は月の魔女。",
+  "Now, let us begin while the moon watches over us.": "さあ、月が見守る中で始めましょう。",
+  "I have been waiting.": "お待ちしていました。",
+  "The stars knew you would find your way here.": "星々は、あなたがここへ辿り着くと知っていました。",
+  "The future is not decided by prophecy alone.": "未来は、予言だけで決まるものではありません。",
+  "Show me that possibility with your own power.": "あなた自身の力で、その可能性を見せてください。",
+  "Now, are you ready to accept the guidance of the stars?": "さあ、星々の導きを受け入れる準備はできましたか？",
+  "Welcome, traveler.": "ようこそ、旅人よ。",
+  "I truly admire that you made it this far.": "ここまで辿り着いたこと、心から感心します。",
+  "To go farther,": "この先へ進むには、",
+  "you need strength even the stars will recognize.": "星々さえ認める強さが必要です。",
+  "Now, show me that radiance.": "さあ、その輝きを見せてください。",
+  "I will answer with all my power.": "私も全力で応えましょう。",
+  "Please, do not let that light fade.": "どうか、その光を消さないで。",
+  "Welcome, challenger!": "ようこそ、挑戦者！",
+  "First, I honor the power that brought you this far.": "まずは、ここまで来たその力を称えよう。",
+  "But if you want to go on,": "だが、この先へ進みたいのなら、",
+  "you will have to surpass me!": "私を超えてみせろ！",
+  "This flame is a light that shines on life.": "この炎は、命を照らす光。",
+  "And a power that burns everything away.": "そして、すべてを焼き尽くす力だ。",
+  "Your resolve and my passion.": "お前の覚悟と、私の情熱。",
+  "Let us see which burns stronger!": "どちらが強く燃えるか、確かめよう！",
+  "Select difficulty": "難易度を選択",
+  "Confirm difficulty": "決定して開始",
+  "Back to title": "タイトルへ戻る",
+  "Difficulty menu controls": "上下で選択・Z / Enter / パッド A で決定\nEsc / パッド B で戻る",
   "Lives": "残機", "Bombs": "ボム", "Power": "パワー", "Shot level": "ショットレベル",
   "Score": "スコア", "Best": "ハイスコア", "Graze": "グレイズ", "Difficulty": "難易度",
   "Next extend": "次の残機追加まで", "Stage progress": "ステージ進行度", "Phase": "フェーズ",
@@ -54,6 +87,7 @@ export const ja = {
 
 export type MessageKey = keyof typeof ja;
 export const en: Record<MessageKey, string> = Object.fromEntries(Object.keys(ja).map(key => [key, key])) as Record<MessageKey, string>;
+en["Difficulty menu controls"] = "Up/Down: select · Z / Enter / Pad A: confirm\nEsc / Pad B: back";
 let locale: Locale = "en";
 
 export function initializeLocale(): Locale {

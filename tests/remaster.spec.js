@@ -42,11 +42,13 @@ for (const locale of ["en", "ja"]) {
     await page.keyboard.press("l");
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
     await page.keyboard.press("Escape");
     const before = await page.evaluate(() => ({ score: game.scene.score, time: game.scene.time, hp: game.scene.player.hp }));
     await page.keyboard.press("l");
     const after = await page.evaluate(() => ({ score: game.scene.score, time: game.scene.time, hp: game.scene.player.hp }));
     expect(after).toEqual(before);
+    await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await page.keyboard.press("l");
     await page.screenshot({ path: testInfo.outputPath(`${locale}-pause.png`) });
     // Exercise result/transition layouts with the real scene and renderer.
@@ -56,7 +58,7 @@ for (const locale of ["en", "ja"]) {
         const { scene: s, app } = game;
         app.ticker.stop();
         s.start({ stageDebug: state === "clear" ? 4 : 3, bossDebug: state === "playing" });
-        if (state === "playing") { s.update(0); s.boss.entered = true; s.boss.pos.y = 145; s.update(0); }
+        if (state === "playing") { s.announcedBoss = true; s.preBossIntroFinished = true; s.time = s.currentStage.bossStartTime; s.update(0); s.boss.entered = true; s.boss.pos.y = 145; s.update(0); }
         if (state === "stageClearPause") s.beginStageClearPause();
         if (state === "stageTransition") { s.currentStageIndex = 0; s.beginNextStage(); }
         if (state === "gameover") { s.state = state; s.finishRun("GAME OVER"); }
@@ -85,7 +87,7 @@ test("locale detection, persistence, unavailable storage and old score isolation
     });
     await openGame(page);
     await expect(page.locator("html")).toHaveAttribute("lang", locale.slice(0, 2));
-    expect(await page.evaluate(() => game.scene.highScores)).toEqual({ casual: 0, normal: 0, lunatic: 0 });
+    expect(await page.evaluate(() => game.scene.highScores)).toEqual({ beginner: 0, casual: 0, normal: 0, lunatic: 0 });
     await page.keyboard.press("Enter"); await page.keyboard.press("l");
     await page.evaluate(() => game.scene.saveHighScores({ casual: 42, normal: 0, lunatic: 0 }));
     await page.reload(); await page.waitForFunction(() => window.game);
@@ -131,7 +133,7 @@ test("actual enemy and boss shells: HP 8, three Lv1 hits, single award, no penet
       s.resolveCollisions(); s.resolveCollisions();
       s.player.pos.x = shell.pos.x; s.player.pos.y = shell.pos.y; s.player.invincible = 0;
       s.resolveCollisions();
-      results.push({ hps, hits, playerHp: s.player.hp, score: s.score, award: Math.round(35 * difficulties[i].score) });
+      results.push({ expectedHp: difficulties[i].id === "beginner" ? 5 : 3, hps, hits, playerHp: s.player.hp, score: s.score, award: Math.round(35 * difficulties[i].score) });
       enemy.destroy(); boss.container.destroy();
     }
     return results;
@@ -144,7 +146,7 @@ test("actual enemy and boss shells: HP 8, three Lv1 hits, single award, no penet
     expect(result.hits.every(h => !h.shotAlive)).toBe(true);
     expect(result.hits.map(h => h.score)).toEqual([0, 0, result.award]);
     expect(result.score).toBe(result.award);
-    expect(result.playerHp).toBe(3);
+    expect(result.playerHp).toBe(result.expectedHp);
   }
 });
 
@@ -159,6 +161,7 @@ test("keyboard play, gamepad language button, and every localized boss HUD", asy
   });
   await expect(page.locator("html")).toHaveAttribute("lang", initial === "ja" ? "en" : "ja");
   await page.evaluate(() => { window.pad.buttons[3].pressed = false; });
+  await page.keyboard.press("Enter");
   await page.keyboard.press("Enter");
   const x = await page.evaluate(() => game.scene.player.pos.x);
   await page.keyboard.down("ArrowLeft"); await page.keyboard.down("z");
@@ -180,7 +183,7 @@ test("keyboard play, gamepad language button, and every localized boss HUD", asy
     for (const locale of ["en", "ja"]) {
       setLocale(locale);
       for (let stage = 1; stage <= 4; stage++) {
-        s.start({ stageDebug: stage, bossDebug: true }); s.update(0);
+        s.start({ stageDebug: stage, bossDebug: true }); s.announcedBoss = true; s.preBossIntroFinished = true; s.time = s.currentStage.bossStartTime; s.update(0);
         for (let phase = 0; phase < 5; phase++) {
           s.boss.phase = phase; s.updateHud();
           const text = s.sideHud.encounter;
@@ -199,7 +202,7 @@ test("four stages, every boss phase, and sustained Lv1 fire through stage 3 shel
   const result = await page.evaluate(async () => {
     const { scene: s, app } = game; app.ticker.stop(); s.audio.toggleMute();
     const logs = [];
-    for (const difficulty of [0, 1, 2]) {
+    for (const difficulty of [0, 1, 2, 3]) {
       s.difficultyIndex = difficulty;
       for (let stage = 1; stage <= 4; stage++) {
         s.start({ stageDebug: stage });
@@ -212,7 +215,7 @@ test("four stages, every boss phase, and sustained Lv1 fire through stage 3 shel
         }
         logs.push({ type: "stage", stage, difficulty, enemies, fire, lasers });
         for (let phase = 0; phase < 5; phase++) {
-          s.start({ stageDebug: stage, bossDebug: true }); s.update(0);
+          s.start({ stageDebug: stage, bossDebug: true }); s.announcedBoss = true; s.preBossIntroFinished = true; s.time = s.currentStage.bossStartTime; s.update(0);
           s.power = 0; s.boss.entered = true; s.boss.pos.y = 145;
           s.boss.hp = s.boss.maxHp * (stage === 3 ? [0.99, 0.65, 0.38, 0.25, 0.12][phase] : 0.99 - phase * 0.2);
           s.boss.update(0, s.bullets, s.player.pos); s.bossPhase = s.boss.getPhase();
@@ -224,6 +227,7 @@ test("four stages, every boss phase, and sustained Lv1 fire through stage 3 shel
             // Track the boss while respecting the player's maximum lateral speed.
             s.player.pos.x += Math.max(-330 / 60, Math.min(330 / 60, s.boss.pos.x - s.player.pos.x));
             s.update(1 / 60);
+            if (!s.boss.alive) break;
             shells = Math.max(shells, s.bullets.bullets.filter(b => b.kind === "shell").length);
             fire = Math.max(fire, s.bullets.bullets.filter(b => b.kind === "fire" || b.kind === "homingFire").length);
             lasers = Math.max(lasers, s.bullets.lasers.length);

@@ -13,6 +13,24 @@ const SALAMANDER_FIRE_INTERVAL_SCALE = 1.5;
 const SALAMANDER_FIRE_LARGE_RADIUS = 10;
 const SALAMANDER_FIRE_MEDIUM_RADIUS = SALAMANDER_FIRE_LARGE_RADIUS / 2;
 const SALAMANDER_FIRE_SMALL_RADIUS = SALAMANDER_FIRE_LARGE_RADIUS / 3;
+const COSMIC_BREAKABLE_BURST_PATTERN = [
+  true,
+  true,
+  true,
+  false,
+  false,
+  true,
+  true,
+  true,
+  false,
+  false,
+  true,
+  true,
+  true,
+  false,
+  false,
+  false
+];
 
 export class Boss implements Actor {
   readonly container = new Container();
@@ -295,8 +313,9 @@ export class Boss implements Actor {
   }
 
   private shouldFireBreakable() {
+    const shouldFire = COSMIC_BREAKABLE_BURST_PATTERN[this.breakableVolley % COSMIC_BREAKABLE_BURST_PATTERN.length];
     this.breakableVolley += 1;
-    if (this.breakableVolley % 2 === 0 || this.breakableCooldown > 0) return false;
+    if (!shouldFire || this.breakableCooldown > 0) return false;
     // Leave a shooting window between walls, including the final rapid-fire spell.
     this.breakableCooldown = 1.4 * this.difficulty.fireDelay;
     return true;
