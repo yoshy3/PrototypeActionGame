@@ -38,12 +38,39 @@ test("difficulty menu remembers selection; Beginner rules and title-only languag
   expect(await page.evaluate(() => game.scene.endingCredits.children.some(c => c.text === "Inspired by Touhou Project"))).toBe(true);
 });
 
+for (const locale of ["ja", "en"]) {
+  test(`${locale}: score extend plays its voice independently of translated text`, async ({ page }) => {
+    await page.addInitScript(locale => localStorage.setItem("moonlit-spell-barrage.locale", locale), locale);
+    await open(page);
+    const before = await page.evaluate(() => {
+      const { scene: s, app } = game;
+      app.ticker.stop();
+      s.start();
+      s.audio.stopVoice();
+      s.score = s.nextExtendScore - 1;
+      const hp = s.player.hp;
+      s.addScore(2);
+      return hp;
+    });
+    await page.waitForFunction(() => game.scene.audio.voiceId === "playerExtend" && game.scene.audio.voice.currentTime > 0);
+    expect(await page.evaluate(() => game.scene.player.hp)).toBe(before + 1);
+    expect(await page.evaluate(() => game.scene.banner.text)).toBe(locale === "ja" ? "残機追加" : "EXTEND");
+    expect(await page.evaluate(() => game.scene.audio.voice.volume)).toBeGreaterThan(0);
+    await page.evaluate(() => {
+      const s = game.scene;
+      s.audio.stopVoice();
+      s.awardLife("BOSS BONUS");
+    });
+    expect(await page.evaluate(() => game.scene.player.hp)).toBe(before + 2);
+    expect(await page.evaluate(() => game.scene.audio.voiceActive)).toBe(false);
+  });
+}
+
 for (const stage of [1, 2, 3, 4]) {
   test(`stage ${stage}: long intro voice plays to completion before boss combat`, async ({ page }, testInfo) => {
+    await page.addInitScript(locale => localStorage.setItem("moonlit-spell-barrage.locale", locale), stage % 2 === 0 ? "ja" : "en");
     await open(page);
-    await page.evaluate(async stage => {
-      const { setLocale } = await import("/src/systems/I18n.ts");
-      setLocale(stage % 2 === 0 ? "ja" : "en");
+    await page.evaluate(stage => {
       const s = game.scene;
       s.start({ stageDebug: stage, bossDebug: true });
     }, stage);

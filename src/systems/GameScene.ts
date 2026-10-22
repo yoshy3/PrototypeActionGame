@@ -1027,7 +1027,7 @@ export class GameScene {
           this.bullets.kill(bullet);
           if (this.boss.damage(bullet.damage)) {
             this.addScore(5000);
-            this.awardLife(t("BOSS BONUS"));
+            this.awardLife("BOSS BONUS");
             this.clearTimer = 0.8;
             this.bullets.clear("enemy");
             this.playBossPhaseVoice(this.bossPhase);
@@ -1445,11 +1445,11 @@ export class GameScene {
     }
   }
 
-  private awardLife(label: string) {
+  private awardLife(reason: "EXTEND" | "BOSS BONUS") {
     this.player.addLife();
     this.floatText(t("+1 LIFE"), this.player.pos.x, this.player.pos.y - 48, 0xfff4a8);
-    this.showBanner(label, 1.0);
-    if (label === "EXTEND") {
+    this.showBanner(t(reason), 1.0);
+    if (reason === "EXTEND") {
       this.audio.extend();
     }
   }
@@ -1559,7 +1559,7 @@ export class GameScene {
     if (this.boss?.alive && this.boss.entered) {
       if (this.boss.damage(42)) {
         this.addScore(5000);
-        this.awardLife(t("BOSS BONUS"));
+        this.awardLife("BOSS BONUS");
         this.clearTimer = 0.8;
         this.playBossPhaseVoice(this.bossPhase);
         this.audio.bossDefeated();
@@ -1663,7 +1663,7 @@ export class GameScene {
   private addScore(baseScore: number) {
     this.score += Math.round(baseScore * this.difficulty.score);
     while (this.score >= this.nextExtendScore) {
-      this.awardLife(t("EXTEND"));
+      this.awardLife("EXTEND");
       this.nextExtendScore += EXTEND_SCORE_STEP;
     }
   }
