@@ -42,7 +42,7 @@ export const ja = {
   "Next extend": "次の残機追加まで", "Stage progress": "ステージ進行度", "Phase": "フェーズ",
   "Casual": "カジュアル", "Normal": "ノーマル", "Lunatic": "ルナティック",
   "Sound On": "音声 ON", "Sound Off": "音声 OFF", "SOUND ON": "音声 ON", "SOUND OFF": "音声 OFF",
-  "Controls": "操作方法", "Player": "プレイヤー", "Records": "プレイ記録",
+  "Controls": "操作方法", "Language": "言語切替", "Player": "プレイヤー", "Records": "プレイ記録",
   "Move: Arrow / WASD / Pad": "移動：矢印 / WASD / パッド",
   "Shoot: Z / Space / Pad A": "ショット：Z / Space / パッド A",
   "Bomb: X / Pad X": "ボム：X / パッド X",

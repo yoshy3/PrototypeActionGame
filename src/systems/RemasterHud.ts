@@ -1,4 +1,4 @@
-import { Container, Graphics, Text } from "pixi.js";
+import { Container, Graphics, Rectangle, Text } from "pixi.js";
 import { version as packageVersion } from "../../package.json";
 import { getLocale, t, UI_FONT, type MessageKey } from "./I18n";
 
@@ -20,6 +20,7 @@ export class RemasterHud {
   private readonly meters = new Graphics();
   private readonly fields = new Map<string, Text>();
   private readonly translated: { text: Text; key: MessageKey; width: number }[] = [];
+  private readonly soundControls = new Container();
   private readonly languageButton = new Container();
   private lastData = "";
 
@@ -79,11 +80,14 @@ export class RemasterHud {
       });
     }
     this.rule(46, 980, 463);
-    this.label("sound", "", 100, 1003, 23, 330);
+    this.soundControls.addChild(this.label("sound", "", 100, 1003, 23, 330));
     // Speaker pictogram, distinct from the keyboard shortcut.
-    g.poly([53, 1016, 63, 1016, 76, 1006, 76, 1037, 63, 1027, 53, 1027]).fill(GOLD);
-    g.moveTo(83, 1010).quadraticCurveTo(96, 1021, 83, 1033).stroke({ color: GOLD, width: 2 });
-    this.keycap("M", 460, 1000, 38);
+    const speaker = new Graphics();
+    speaker.poly([53, 1016, 63, 1016, 76, 1006, 76, 1037, 63, 1027, 53, 1027]).fill(GOLD);
+    speaker.moveTo(83, 1010).quadraticCurveTo(96, 1021, 83, 1033).stroke({ color: GOLD, width: 2 });
+    this.soundControls.addChild(speaker);
+    this.keycap("M", 460, 1000, 38, false, this.soundControls);
+    this.container.addChild(this.soundControls);
 
     this.heading("Records", 1411, 54);
     g.roundRect(1700, 57, 174, 42, 8).fill(0x282035).stroke({ color: PINK, alpha: 0.65, width: 1 });
@@ -109,18 +113,11 @@ export class RemasterHud {
     this.label("hp", "", 1420, 900, 25, 454, true);
     this.label("tip", "", 1418, 1006, 22, 450);
 
-    // The title-only language button replaces the sound row at the same position.
-    const button = new Graphics().roundRect(46, 987, 463, 62, 8).fill(0x292238).stroke({ color: GOLD, width: 1 });
-    this.languageButton.addChild(button);
-    const language = this.label("language", "", 64, 1004, 24, 270);
-    this.languageButton.addChild(language);
-    const key = this.label("languageKey", "L", 366, 1004, 24, 30);
-    const pad = this.label("languagePad", "Y", 465, 1006, 20, 22, false, PANEL);
-    const input = new Graphics().roundRect(355, 998, 38, 38, 5).stroke({ color: IVORY, width: 1 });
-    input.roundRect(412, 998, 83, 38, 12).stroke({ color: IVORY, width: 1 });
-    input.moveTo(429, 1008).lineTo(429, 1026).moveTo(420, 1017).lineTo(438, 1017).stroke({ color: IVORY, width: 2 });
-    input.circle(473, 1017, 13).fill(GOLD);
-    this.languageButton.addChild(input, key, pad);
+    // The title-only language control uses the same row layout as the controls above.
+    this.languageButton.addChild(this.local("Language", 53, 1004, 23, 125));
+    this.keycap("L", 200, 1000, 40, false, this.languageButton);
+    this.keycap("Y", 256, 1000, 40, true, this.languageButton);
+    this.languageButton.hitArea = new Rectangle(46, 987, 463, 62);
     this.languageButton.eventMode = "static";
     this.languageButton.cursor = "pointer";
     this.languageButton.on("pointertap", onLanguage);
@@ -145,6 +142,7 @@ export class RemasterHud {
   private local(key: MessageKey, x: number, y: number, size: number, width: number, serif = false) {
     const text = this.label(`label-${key}`, t(key), x, y, size, width, serif);
     this.translated.push({ text, key, width });
+    return text;
   }
 
   private heading(key: MessageKey, x: number, y: number) {
@@ -187,10 +185,13 @@ export class RemasterHud {
     }
   }
 
-  private keycap(value: string, x: number, y: number, width: number, controller = false) {
-    this.decoration.roundRect(x, y, width, 36, controller ? 14 : 4).fill(0x0c0b18).stroke({ color: controller ? PINK : 0xaaa3b7, width: 1 });
+  private keycap(value: string, x: number, y: number, width: number, controller = false, parent?: Container) {
+    const graphics = parent ? new Graphics() : this.decoration;
+    graphics.roundRect(x, y, width, 36, controller ? 14 : 4).fill(0x0c0b18).stroke({ color: controller ? PINK : 0xaaa3b7, width: 1 });
+    if (parent) parent.addChild(graphics);
     const text = this.label(`key-${x}-${y}`, value, x + 7, y + 4, 21, width - 14, false, controller ? PINK : IVORY);
     text.x = x + (width - text.width) / 2;
+    if (parent) parent.addChild(text);
   }
 
   update(data: HudData) {
@@ -224,8 +225,8 @@ export class RemasterHud {
     const hp = this.fields.get("hp")!;
     hp.x = 1420 + (454 - hp.width) / 2;
     set("tip", t(data.inRun ? "Auto-collect above the line" : "Graze bullets for bonus score"), 450);
-    set("language", getLocale() === "ja" ? "日本語 → English" : "English → 日本語", 270);
     this.languageButton.visible = data.canChangeLanguage;
+    this.soundControls.visible = !data.canChangeLanguage;
     this.meters.clear();
     for (let i = 0; i < Math.min(5, data.inRun ? data.lives : 0); i++) this.moon(this.meters, 205 + i * 48, 288, 17, PINK);
     for (let i = 0; i < Math.min(5, data.inRun ? data.bombs : 0); i++) this.star(this.meters, 205 + i * 48, 352, 17, IVORY);
