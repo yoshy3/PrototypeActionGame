@@ -44,6 +44,11 @@ jobs:
         env:
           VITE_APP_VERSION: ${{ steps.version.outputs.version }}
 
+      - name: Archive Pages site
+        run: |
+          cd dist
+          zip -qr "$GITHUB_WORKSPACE/PrototypeActionGame-pages.zip" .
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
@@ -59,7 +64,9 @@ jobs:
         uses: actions/deploy-pages@v4
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
           make_latest: true
+          files: PrototypeActionGame-pages.zip
+          fail_on_unmatched_files: true

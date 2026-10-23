@@ -8,6 +8,7 @@ Its stage flow, dense spell patterns, grazing, and boss-focused structure are in
 ## Play Online
 
 Try the latest version at https://yoshy3.github.io/PrototypeActionGame/!
+Tagged releases also include `PrototypeActionGame-pages.zip`, with `index.html` at the archive root and the same static files deployed to GitHub Pages.
 
 ## Run Locally
 
