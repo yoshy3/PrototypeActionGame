@@ -445,8 +445,11 @@ export class Boss implements Actor {
 
   private fireSalamanderSpell(bullets: BulletSystem) {
     if (this.phase === 0) {
-      this.fireCinderRain(bullets, 7, 0.42);
-      this.fireTimer = this.salamanderFireInterval(0.34);
+      // Phase 1 only: Lunatic uses the former Normal attack; Normal sits halfway to Casual.
+      const bulletSpeed = this.difficulty.id === "lunatic" ? 1 : this.difficulty.id === "normal" ? 0.93 : this.difficulty.bulletSpeed;
+      const fireDelay = this.difficulty.id === "lunatic" ? 1.5 : this.difficulty.id === "normal" ? 2.58 : this.difficulty.fireDelay;
+      this.fireCinderRain(bullets, 7, 0.42, bulletSpeed);
+      this.fireTimer = this.salamanderFireInterval(0.34, fireDelay);
     } else if (this.phase === 1) {
       this.fireFlameWheel(bullets, 8, 186);
       this.fireTimer = this.salamanderFireInterval(0.16);
@@ -458,9 +461,12 @@ export class Boss implements Actor {
       }
       this.fireTimer = this.salamanderFireInterval(0.38);
     } else if (this.phase === 3) {
-      this.fireCinderRain(bullets, 10, 0.58);
-      this.fireFlameFan(bullets, 9);
-      this.fireTimer = this.salamanderFireInterval(0.28);
+      // Phase 4 only: match the same reduced attack speeds and intervals as phase 1.
+      const bulletSpeed = this.difficulty.id === "lunatic" ? 1 : this.difficulty.id === "normal" ? 0.93 : this.difficulty.bulletSpeed;
+      const fireDelay = this.difficulty.id === "lunatic" ? 1.5 : this.difficulty.id === "normal" ? 2.58 : this.difficulty.fireDelay;
+      this.fireCinderRain(bullets, 10, 0.58, bulletSpeed);
+      this.fireFlameFan(bullets, 9, bulletSpeed);
+      this.fireTimer = this.salamanderFireInterval(0.28, fireDelay);
     } else {
       if (Math.floor(this.age * 5) % 2 === 0) {
         this.fireFlameWheel(bullets, 10, 210);
@@ -476,11 +482,11 @@ export class Boss implements Actor {
     }
   }
 
-  private salamanderFireInterval(baseSeconds: number) {
-    return baseSeconds * SALAMANDER_FIRE_INTERVAL_SCALE * this.difficulty.fireDelay;
+  private salamanderFireInterval(baseSeconds: number, fireDelay = this.difficulty.fireDelay) {
+    return baseSeconds * SALAMANDER_FIRE_INTERVAL_SCALE * fireDelay;
   }
 
-  private fireCinderRain(bullets: BulletSystem, count: number, spread: number) {
+  private fireCinderRain(bullets: BulletSystem, count: number, spread: number, bulletSpeed = this.difficulty.bulletSpeed) {
     const center = this.angleToTarget({ x: this.pos.x, y: this.pos.y + 22 });
     for (let i = 0; i < count; i += 1) {
       const t = count === 1 ? 0 : i / (count - 1) - 0.5;
@@ -489,7 +495,7 @@ export class Boss implements Actor {
         "enemy",
         "fire",
         { x: this.pos.x + t * 150, y: this.pos.y + 24 + Math.abs(t) * 30 },
-        polar(center + t * spread + wave, (150 + Math.abs(t) * 72) * this.difficulty.bulletSpeed),
+        polar(center + t * spread + wave, (150 + Math.abs(t) * 72) * bulletSpeed),
         i % 3 === 0 ? SALAMANDER_FIRE_LARGE_RADIUS : SALAMANDER_FIRE_MEDIUM_RADIUS,
         1
       );
@@ -540,7 +546,7 @@ export class Boss implements Actor {
     this.fireFlameFan(bullets, 7);
   }
 
-  private fireFlameFan(bullets: BulletSystem, count: number) {
+  private fireFlameFan(bullets: BulletSystem, count: number, bulletSpeed = this.difficulty.bulletSpeed) {
     const center = this.angleToTarget({ x: this.pos.x, y: this.pos.y + 28 });
     for (let i = 0; i < count; i += 1) {
       const t = count === 1 ? 0 : i / (count - 1) - 0.5;
@@ -548,7 +554,7 @@ export class Boss implements Actor {
         "enemy",
         "fire",
         { x: this.pos.x + t * 116, y: this.pos.y + 30 },
-        polar(center + t * 0.82, (168 + Math.abs(t) * 52) * this.difficulty.bulletSpeed),
+        polar(center + t * 0.82, (168 + Math.abs(t) * 52) * bulletSpeed),
         i % 3 === 0 ? SALAMANDER_FIRE_LARGE_RADIUS : i % 2 === 0 ? SALAMANDER_FIRE_MEDIUM_RADIUS : SALAMANDER_FIRE_SMALL_RADIUS,
         1
       );
