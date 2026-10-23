@@ -30,6 +30,7 @@ const DIFFICULTY_KEY = "moonlit-spell-barrage.difficulty";
 const HIGH_SCORE_KEY = "moonlit-spell-barrage.remaster.highScores";
 const TITLE_IMAGE_URL = new URL("../assets/images/title.png", import.meta.url).href;
 const ENDING_IMAGE_URL = new URL("../assets/images/ending.png", import.meta.url).href;
+const ENDING_ART_WIDTH = 1381;
 const BOSS_STANDING_URLS: Record<BossKind, string> = {
   lunarWitch: new URL("../assets/characters/boss-lunar-witch-standing.png", import.meta.url).href,
   starlightOracle: new URL("../assets/characters/boss-starlight-oracle-standing.png", import.meta.url).href,
@@ -121,6 +122,7 @@ export class GameScene {
   private readonly titleArt = new Sprite(Texture.EMPTY);
   private readonly endingLayer = new Container();
   private readonly endingArt = new Sprite(Texture.EMPTY);
+  private readonly endingHudMask = new Graphics().rect(ENDING_ART_WIDTH, 0, 1920 - ENDING_ART_WIDTH, 1080).fill(0xffffff);
   private readonly endingShade = new Graphics();
   private readonly endingCredits = new Container();
   private readonly bossStandingTextures = new Map<BossKind, Texture>();
@@ -307,8 +309,9 @@ export class GameScene {
     const endingTexture = (await Assets.load(ENDING_IMAGE_URL)) as Texture;
     this.endingArt.texture = endingTexture;
     this.endingArt.anchor.set(0.5);
-    this.endingArt.position.set(360, 480);
+    this.endingArt.position.set(ENDING_ART_WIDTH / 2, 540);
     this.fitEndingArt();
+    this.endingArt.visible = false;
     await Promise.all(
       Object.entries(BOSS_STANDING_URLS).map(async ([kind, url]) => {
         const texture = (await Assets.load(url)) as Texture;
@@ -319,16 +322,18 @@ export class GameScene {
     this.center.position.set(555, 0);
     this.center.scale.set(1.125);
     const clip = new Graphics().rect(555, 0, 810, 1080).fill(0xffffff);
-    this.app.stage.addChild(this.sideHud.container, this.center, clip);
+    this.app.stage.addChild(this.sideHud.container, this.center, clip, this.endingArt, this.endingLayer, this.endingHudMask);
+    this.endingHudMask.visible = false;
     this.center.addChild(this.root);
     this.center.mask = clip;
+    this.endingLayer.position.set(555, 0);
+    this.endingLayer.scale.set(1.125);
     this.root.addChild(
       this.background,
       this.titleArt,
       this.playfield,
       this.collectLine,
-      this.bombFlash,
-      this.endingLayer
+      this.bombFlash
     );
     this.center.addChild(this.ui);
     this.playfield.addChild(this.items.container, this.bullets.container, this.player.container);
@@ -381,7 +386,7 @@ export class GameScene {
     this.endingLayer.visible = false;
     this.createEndingCredits();
     this.endingHint.position.set(360, ENDING_HINT_Y);
-    this.endingLayer.addChild(this.endingArt, this.endingShade, this.endingCredits, this.endingHint, this.endingPrompt);
+    this.endingLayer.addChild(this.endingShade, this.endingCredits, this.endingHint, this.endingPrompt);
     this.ui.addChild(this.clearFx, this.preBossIntro, this.banner, this.overlay, this.overlayPrompt, this.pauseTitleProgress, this.difficultyMenu.container);
 
     this.drawBackground();
@@ -1286,6 +1291,9 @@ export class GameScene {
   }
 
   private showEnding() {
+    this.endingHudMask.visible = true;
+    this.sideHud.container.mask = this.endingHudMask;
+    this.endingArt.visible = true;
     this.endingLayer.visible = true;
     this.endingShade.clear();
     this.endingShade.rect(0, 0, 720, 960).fill({ color: 0x080412, alpha: 0.28 });
@@ -1294,6 +1302,9 @@ export class GameScene {
   }
 
   private hideEnding() {
+    this.sideHud.container.mask = null;
+    this.endingHudMask.visible = false;
+    this.endingArt.visible = false;
     this.endingLayer.visible = false;
     this.endingInputTimer = 0;
     this.endingCreditScrollY = ENDING_CREDIT_START_Y;
@@ -1862,7 +1873,7 @@ export class GameScene {
       return;
     }
 
-    const scale = Math.max(720 / width, 960 / height);
+    const scale = Math.max(ENDING_ART_WIDTH / width, 1080 / height);
     this.endingArt.scale.set(scale);
   }
 }
