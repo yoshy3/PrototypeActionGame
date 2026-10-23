@@ -1,4 +1,5 @@
 import { Container, Graphics, Text } from "pixi.js";
+import { version as packageVersion } from "../../package.json";
 import { getLocale, t, UI_FONT, type MessageKey } from "./I18n";
 
 export type HudData = {
@@ -43,6 +44,8 @@ export class RemasterHud {
     }
     this.moon(g, 94, 91, 43, GOLD);
     this.star(g, 135, 80, 13, IVORY);
+    const version = this.label("version", `Version ${import.meta.env.VITE_APP_VERSION ?? packageVersion}`, 55, 26, 16, 190, false, GOLD);
+    version.alpha = 0.5;
     this.label("title", "MOONLIT", 168, 43, 49, 342, true);
     this.label("subtitle", "SPELL BARRAGE", 170, 104, 26, 339, true);
     this.rule(46, 168, 463);
@@ -213,11 +216,11 @@ export class RemasterHud {
     set("best", number(data.best), 239);
     set("graze", number(data.graze), 165);
     set("extend", number(data.nextExtend), 239);
-    set("encounterKind", t(data.boss ? "Boss" : "Stage progress"), 390);
-    set("encounter", data.boss?.name ?? data.stage, 454);
-    set("spell", data.boss?.spell ?? data.subtitle, 454);
-    set("phase", data.boss ? `${t("Phase")} ${data.boss.phase} / 5` : `${Math.floor(data.progress * 100)}%`, 210);
-    set("hp", data.boss ? `${Math.ceil(data.boss.hp)} / ${Math.ceil(data.boss.maxHp)} HP` : "", 454);
+    set("encounterKind", data.inRun ? t(data.boss ? "Boss" : "Stage progress") : "", 390);
+    set("encounter", data.inRun ? data.boss?.name ?? data.stage : "", 454);
+    set("spell", data.inRun ? data.boss?.spell ?? data.subtitle : "", 454);
+    set("phase", data.inRun ? (data.boss ? `${t("Phase")} ${data.boss.phase} / 5` : `${Math.floor(data.progress * 100)}%`) : "", 210);
+    set("hp", data.inRun && data.boss ? `${Math.ceil(data.boss.hp)} / ${Math.ceil(data.boss.maxHp)} HP` : "", 454);
     const hp = this.fields.get("hp")!;
     hp.x = 1420 + (454 - hp.width) / 2;
     set("tip", t(data.inRun ? "Auto-collect above the line" : "Graze bullets for bonus score"), 450);
